@@ -14,36 +14,36 @@ $list -> list all servers, filtered based on server id <br/>
 
 
 Later: 
-$modpack http://example.com.zip -> so can install modpacks and/or datapacks automatically 
+$modpack http://example.com.zip -> so can install modpacks and/or datapacks automatically <br/>
 
--- the command with the parameters -- 
-
-
-podman run -d -it \ 
--e GUI=FALSE 
--e EULA=TRUE \ 
--e TYPE=$type '#FORGESPIGOTPAPERCURESFORGEetc' \  
--e VERSION=$version \  
--e FTB_MODPACK_ID=$ftbmodpackid '#only if ftb' \ 
--e CF_SERVER_MOD=$modpackzip \ 
--e WORLD=$worldzipurl \ 
-//server properties 
--e OVERRIDE_SERVER_PROPERTIES=true  \ 
--e '#all the options idk gl like DIFFICULTY=hard' \
--e SEED=$seed \ 
--e LEVEL_TYPE=flat 
-//for autopause 
--e MAX_TICK_TIME=-1 '#for autopause' \ 
--e JVM_DD_OPTS=disable.watchdog:true \ 
--e ENABLE_AUTOPAUSE=TRUE 
-//memory 
--e MEMORY=$memory \ 
--e INITMEMORY=$initialmemory \ 
--e MAX_MEMORY=$maxmemory \ 
--e EXEC_DIRECTLY=$exec '#if you want colors and stuff and also uses _docker attach_ instead of the other thing' \ 
+-- the command with the parameters -- <br/>
 
 
--p port:port \ 
---name $name \ 
+podman run -d -it \ <br/>
+-e GUI=FALSE <br/>
+-e EULA=TRUE \ <br/>
+-e TYPE=$type '#FORGESPIGOTPAPERCURESFORGEetc' \  <br/>
+-e VERSION=$version \  <br/>
+-e FTB_MODPACK_ID=$ftbmodpackid '#only if ftb' \ <br/>
+-e CF_SERVER_MOD=$modpackzip \ <br/>
+-e WORLD=$worldzipurl \ <br/>
+//server properties <br/>
+-e OVERRIDE_SERVER_PROPERTIES=true  \ <br/>
+-e '#all the options idk gl like DIFFICULTY=hard' \<br/>
+-e SEED=$seed \ <br/>
+-e LEVEL_TYPE=flat <br/>
+//for autopause <br/>
+-e MAX_TICK_TIME=-1 '#for autopause' \ <br/>
+-e JVM_DD_OPTS=disable.watchdog:true \ <br/>
+-e ENABLE_AUTOPAUSE=TRUE <br/>
+//memory <br/>
+-e MEMORY=$memory \ <br/>
+-e INITMEMORY=$initialmemory \ <br/>
+-e MAX_MEMORY=$maxmemory \ <br/>
+-e EXEC_DIRECTLY=$exec '#if you want colors and stuff and also uses _docker attach_ instead of the other thing' \ <br/>
 
-itzg/minecraft-server:$javaversion 
+
+-p port:port \ <br/>
+--name $name \ <br/>
+
+itzg/minecraft-server:$javaversion <br/>
