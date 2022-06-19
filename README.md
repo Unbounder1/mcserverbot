@@ -6,11 +6,11 @@ have a changeable operand or whatever its called like $command can change to .co
 $create -> goes through a process to create a new server, with all the options being steps that you can choose or something  
 --creates a server in the list  
 --sends commands to the docker (podman) to create a server based on that  
---maybe read the output till it says like "server up" and update the process to say like server successfully set up 
-$stop -> stops the specified server 
-$start -> starts the specified server if it exists 
-$delete -> deletes the podman thing, probably should make it admin only or something  
-$list -> list all servers, filtered based on server id 
+--maybe read the output till it says like "server up" and update the process to say like server successfully set up <br/><br/>
+$stop -> stops the specified server <br/>
+$start -> starts the specified server if it exists <br/>
+$delete -> deletes the podman thing, probably should make it admin only or something  <br/>
+$list -> list all servers, filtered based on server id <br/>
 
 
 Later: 
