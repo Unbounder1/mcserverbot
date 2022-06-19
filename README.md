@@ -3,8 +3,8 @@
 - Functions -
 have a changeable operand or whatever its called like $command can change to .command
 
-$create -> goes through a process to create a new server, with all the options being steps that you can choose or something
---creates a server in the list
+$create -> goes through a process to create a new server, with all the options being steps that you can choose or something \n
+--creates a server in the list \n 
 --sends commands to the docker (podman) to create a server based on that
 --maybe read the output till it says like "server up" and update the process to say like server successfully set up
 $stop -> stops the specified server
