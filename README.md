@@ -11,7 +11,8 @@ $stop -> stops the specified server <br/>
 $start -> starts the specified server if it exists <br/>
 $delete -> deletes the podman thing, probably should make it admin only or something  <br/>
 $list -> list all servers, filtered based on server id <br/>
-
+$copy -> copys a server<br/>
+$send [server] [console command] -> sends some server commands<br/>
 
 Later: 
 $modpack http://example.com.zip -> so can install modpacks and/or datapacks automatically <br/>
