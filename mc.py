@@ -1,16 +1,12 @@
 from discord import Guild
 from discord.ext import commands
 from discord.ext.commands import Context
-from pysondb import db
+from tinydb import TinyDB, Query, where
 
 class MC(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.db = db.getDb('serverDB.json')
-        self.db.add({
-            'serverId': 'discordServerId',
-            'mcName': 'mcServerName'
-        })
+        self.db = TinyDB('serverDB.json').table(name='_default', cache_size = 0)
 
     @commands.command()
     async def create(self, ctx: Context, name: str):
@@ -19,38 +15,32 @@ class MC(commands.Cog):
             await ctx.send('Server with name already exists.')
             return
 
-        self.db.add({
+        self.db.insert({
             'serverId': ctx.guild.id,
-            'mcName': name
+            'name': name
         })
         await ctx.send(f'Server with name "{name}" added.')
 
     @commands.command()
     async def delete(self, ctx: Context, name: str):
-
-        if not self.get(ctx, name):
+        ids = self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
+        if len(ids) == 0:
             await ctx.send('Server does not exist.')
             return
-
-        self.db.deleteById(self.getId(ctx, name))
         await ctx.send(f'Server with name "{name}" deleted.')
 
     @commands.command()
     async def list(self, ctx: Context):
-        servers = [entry['mcName'] for entry in self.get(ctx)]
+        servers = [entry['name'] for entry in self.get(ctx)]
+        if len(servers) == 0:
+            await ctx.send('No servers')
+            return
         await ctx.send('\n'.join(servers))
 
 
     def get(self, ctx: Context, name: str = None):
         id: Guild.id = ctx.guild.id
         if name:
-            res = self.db.getBy({'serverId': id, 'mcName': name})
+            return self.db.get((where('serverId') == id) & (where('name') == name))
         else:
-            res = self.db.getBy({'serverId': id})
-        if len(res) == 0: return None
-        return res
-
-    def getId(self, ctx: Context, name: str = None):
-        res = self.get(ctx, name)
-        if res == None: return res
-        return res[0]['id']
+            return self.db.search((where('serverId') == id))
