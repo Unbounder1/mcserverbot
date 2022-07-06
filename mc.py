@@ -11,13 +11,44 @@ class MC(commands.Cog):
     @commands.command()
     async def create(self, ctx: Context, name: str):
 
-        if self.get(ctx, name):
+        if self.get(ctx, name, ):
             await ctx.send('Server with name already exists.')
             return
-
+        mctype = mcversion = seed = memory = ops = whitelist = ftb = forgeapi = difficulty = spawnprot = viewdistance = maxbuild = hardcore = commandblock = maxworldsize = maxplayers = motd = enforcewhitelist = world = modpack = vanillatweaks = spigotresources = datapacks = None
         self.db.insert({
+            #main params
             'serverId': ctx.guild.id,
-            'name': name
+            'name': name,
+            'type': mctype,
+            'version': mcversion,
+            'seed': seed,
+            'memory': memory,
+            #users
+            'ops': ops,
+            'whitelist': whitelist
+            #modded
+            'ftb': ftb,
+            #forge modded
+            'forgeapi': forgeapi,
+            #server properties
+            'difficulty': difficulty,
+            'spawnprot': spawnprot
+            'viewdistance': viewdistance,
+            'maxbuild': maxbuild,
+            'hardcore': hardcore,
+            'commandblock': commandblock,
+            'maxworldsize': maxworldsize,
+            'maxplayers': maxplayers,
+            'motd': motd,
+            'enforcewhitelist': enforcewhitelist
+            #links
+            'world': world,
+            'modpack': modpack,
+            'vanillatweaks': vanillatweaks,
+            'spigotresources': spigotresources,
+            'datapacks': datapacks
+
+
         })
         await ctx.send(f'Server with name "{name}" added.')
 

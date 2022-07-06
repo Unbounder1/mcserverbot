@@ -48,3 +48,20 @@ podman run -d -it \ <br/>
 --name $name \ <br/>
 
 itzg/minecraft-server:$javaversion <br/>
+
+notes: 
+set OVERRIDE_OPS false
+INIT_MEMORY 1gb or smth
+
+forge api:
+
+    MODS_FORGEAPI_KEY - Required
+    MODS_FORGEAPI_FILE - Required or use MODS_FORGEAPI_PROJECTIDS (Overrides MODS_FORGEAPI_PROJECTIDS)
+    MODS_FORGEAPI_PROJECTIDS - Required or use MODS_FORGEAPI_FILE
+    MODS_FORGEAPI_RELEASES - Default is release, Options: [Release|Beta|Alpha]
+    MODS_FORGEAPI_DOWNLOAD_DEPENDENCIES - Default is False, attempts to download required mods (releaseType Release) defined in Forge.
+    MODS_FORGEAPI_IGNORE_GAMETYPE - Default is False, Allows for filtering mods on family type: FORGE, FABRIC, and BUKKIT. (Does not filter for Vanilla or custom)
+    REMOVE_OLD_FORGEAPI_MODS - Default is False
+    REMOVE_OLD_DATAPACKS_DEPTH - Default is 1
+    REMOVE_OLD_DATAPACKS_INCLUDE - Default is *.jar
+
