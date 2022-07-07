@@ -2,14 +2,14 @@ from discord import Guild
 from discord.ext import commands
 from discord.ext.commands import Context
 from tinydb import TinyDB, Query, where
-
+import re
 class MC(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = TinyDB('serverDB.json').table(name='_default', cache_size = 0)
 
     @commands.command()
-    async def create(self, ctx: Context, name: str, mctype: str=None, mcversion: str=None, memory: str=2):
+    async def create(self, ctx: Context, name: str, *, args):
 
         if self.get(ctx, name):
             await ctx.send('Server with name already exists.')
@@ -18,10 +18,8 @@ class MC(commands.Cog):
         #self.db.insert({
         #    'serverId': ctx.guild.id,
         #    'name': name,
-
         #})
-        await ctx.send(f'Server with name "{name}" added.')
-        seed = ops = whitelist = ftb = forgeapi = servername = difficulty = spawnprot = viewdistance = maxbuild = hardcore = commandblock = maxworldsize = maxplayers = motd = enforcewhitelist = world = modpack = vanillatweaks = spigetresources = datapacks = icon = None
+        mctype = mcversion = memory = seed = ops = whitelist = ftb = forgeapi = servername = difficulty = spawnprot = viewdistance = maxbuild = hardcore = commandblock = maxworldsize = maxplayers = motd = enforcewhitelist = world = modpack = vanillatweaks = spigetresources = datapacks = icon = None
         #mandatory things
         defaultenv = {
                 'GUI': "false", 
@@ -36,6 +34,7 @@ class MC(commands.Cog):
                 'ENABLE_RCON': "true",
                 'RCON_PASSWORD': "minecraft", #Advised to change this
                 #autopause stuff
+
                 'MAX_TICK_TIME' : "-1",
                 'ENABLE_AUTOPAUSE': "true",
                 'AUTOPAUSE_TIMEOUT_EST': "3600",
@@ -51,8 +50,20 @@ class MC(commands.Cog):
         specialpropenv = {'DIFFICULTY': difficulty, 'world': world,'VANILLATWEAKS_SHARECODE': vanillatweaks,'DATAPACKS': datapacks,'SPIGET_RESOURCES': spigetresources, 'ICON': icon,'WHITELIST': whitelist}
         boolpropenv = {'ENABLE_COMMAND_BLOCK': commandblock,'HARDCORE': hardcore}
         #add modpack stuff later --------------------------
+
+        print (args)
+        if len(args)>0:
+            for variables in mainenv.keys():
+                temp1 = variables + '\S*(\s|$)'
+                print (temp1)
+                temp2 = re.search(temp1,args, flags=re.IGNORECASE|re.MULTILINE)
+                if temp2:
+                    mainenv[variables] = re.split('=', temp2.group(), flags=re.IGNORECASE|re.MULTILINE)[1]
+                    print (temp2.group())
+            print (mainenv)
+        await ctx.send(f'Server with name "{name}" added.')
     #@commands.command()
-    #async def set(self, ctx: Context, name: str):
+    #async def set(self, ctx: Context, name: str, *, args):
 
 
     @commands.command()
