@@ -9,9 +9,9 @@ class MC(commands.Cog):
         self.db = TinyDB('serverDB.json').table(name='_default', cache_size = 0)
 
     @commands.command()
-    async def create(self, ctx: Context, name: str):
+    async def create(self, ctx: Context, name: str, mctype: str=None, mcversion: str=None, memory: str=2):
 
-        if self.get(ctx, name, ):
+        if self.get(ctx, name):
             await ctx.send('Server with name already exists.')
             return
 
@@ -21,8 +21,7 @@ class MC(commands.Cog):
 
         #})
         await ctx.send(f'Server with name "{name}" added.')
-
-        mctype = mcversion = seed = memory = ops = whitelist = ftb = forgeapi = servername = difficulty = spawnprot = viewdistance = maxbuild = hardcore = commandblock = maxworldsize = maxplayers = motd = enforcewhitelist = world = modpack = vanillatweaks = spigetresources = datapacks = icon = None
+        seed = ops = whitelist = ftb = forgeapi = servername = difficulty = spawnprot = viewdistance = maxbuild = hardcore = commandblock = maxworldsize = maxplayers = motd = enforcewhitelist = world = modpack = vanillatweaks = spigetresources = datapacks = icon = None
         #mandatory things
         defaultenv = {
                 'GUI': "false", 
@@ -52,7 +51,8 @@ class MC(commands.Cog):
         specialpropenv = {'DIFFICULTY': difficulty, 'world': world,'VANILLATWEAKS_SHARECODE': vanillatweaks,'DATAPACKS': datapacks,'SPIGET_RESOURCES': spigetresources, 'ICON': icon,'WHITELIST': whitelist}
         boolpropenv = {'ENABLE_COMMAND_BLOCK': commandblock,'HARDCORE': hardcore}
         #add modpack stuff later --------------------------
-
+    #@commands.command()
+    #async def set(self, ctx: Context, name: str):
 
 
     @commands.command()
