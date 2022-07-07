@@ -14,43 +14,46 @@ class MC(commands.Cog):
         if self.get(ctx, name, ):
             await ctx.send('Server with name already exists.')
             return
-        mctype = mcversion = seed = memory = ops = whitelist = ftb = forgeapi = difficulty = spawnprot = viewdistance = maxbuild = hardcore = commandblock = maxworldsize = maxplayers = motd = enforcewhitelist = world = modpack = vanillatweaks = spigotresources = datapacks = None
-        self.db.insert({
-            #main params
-            'serverId': ctx.guild.id,
-            'name': name,
-            'type': mctype,
-            'version': mcversion,
-            'seed': seed,
-            'memory': memory,
-            #users
-            'ops': ops,
-            'whitelist': whitelist
-            #modded
-            'ftb': ftb,
-            #forge modded
-            'forgeapi': forgeapi,
-            #server properties
-            'difficulty': difficulty,
-            'spawnprot': spawnprot
-            'viewdistance': viewdistance,
-            'maxbuild': maxbuild,
-            'hardcore': hardcore,
-            'commandblock': commandblock,
-            'maxworldsize': maxworldsize,
-            'maxplayers': maxplayers,
-            'motd': motd,
-            'enforcewhitelist': enforcewhitelist
-            #links
-            'world': world,
-            'modpack': modpack,
-            'vanillatweaks': vanillatweaks,
-            'spigotresources': spigotresources,
-            'datapacks': datapacks
 
+        #self.db.insert({
+        #    'serverId': ctx.guild.id,
+        #    'name': name,
 
-        })
+        #})
         await ctx.send(f'Server with name "{name}" added.')
+
+        mctype = mcversion = seed = memory = ops = whitelist = ftb = forgeapi = servername = difficulty = spawnprot = viewdistance = maxbuild = hardcore = commandblock = maxworldsize = maxplayers = motd = enforcewhitelist = world = modpack = vanillatweaks = spigetresources = datapacks = icon = None
+        #mandatory things
+        defaultenv = {
+                'GUI': "false", 
+                'EULA': "true", 
+                'INIT_MEMORY': "1G",
+
+                'OVERRIDE_SERVER_PROPERTIES' : "true", 
+                'REPLACE_ENV_IN_PLACE': "false",
+                'OVERRIDE_OPS': "false",
+                
+                #RCON
+                'ENABLE_RCON': "true",
+                'RCON_PASSWORD': "minecraft", #Advised to change this
+                #autopause stuff
+                'MAX_TICK_TIME' : "-1",
+                'ENABLE_AUTOPAUSE': "true",
+                'AUTOPAUSE_TIMEOUT_EST': "3600",
+
+                #autostop stuff
+                'ENABLE_AUTOSTOP': "TRUE",
+                'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
+
+        }
+        mainenv = {'TYPE': mctype, 'VERSION': mcversion,'MAX_MEMORY': memory}
+        intpropenv = {'SEED': seed,'SPAWN_PROTECTION': spawnprot,'VIEW_DISTANCE': viewdistance,'MAX_BUILD_HEIGHT': maxbuild,'MAX_WORLD_SIZE': maxworldsize,'MAX_PLAYERS': maxplayers}
+        strpropenv = {'OPS': ops,'SERVER_NAME': servername,'MOTD': motd}
+        specialpropenv = {'DIFFICULTY': difficulty, 'world': world,'VANILLATWEAKS_SHARECODE': vanillatweaks,'DATAPACKS': datapacks,'SPIGET_RESOURCES': spigetresources, 'ICON': icon,'WHITELIST': whitelist}
+        boolpropenv = {'ENABLE_COMMAND_BLOCK': commandblock,'HARDCORE': hardcore}
+        #add modpack stuff later --------------------------
+
+
 
     @commands.command()
     async def delete(self, ctx: Context, name: str):
