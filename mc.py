@@ -104,11 +104,10 @@ class MC(commands.Cog):
         #ADD CHECK FOR IF THE THING EXISTS OR NOT <-----------------------
 
         intpropenv = strpropenv = specialpropenv = boolpropenv = {}
-        intpropenv.fromkeys(['SEED','SPAWN_PROTECTION''VIEW_DISTANCE''MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
-        strpropenv.fromkeys(['OPS','SERVER_NAME','MOTD','DIFFICULTY','WORLD',])
-        boolpropenv.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','WHITELIST'])
-        specialpropenv.fromkeys(['VANILLATWEAKS_SHARECODE','DATAPACKS','SPIGET_RESOURCES','ICON',])
-
+        intpropenv = dict.fromkeys(['SEED','SPAWN_PROTECTION','VIEW_DISTANCE','MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
+        strpropenv = dict.fromkeys(['OPS','SERVER_NAME','MOTD','DIFFICULTY','WORLD',], None)
+        boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','WHITELIST'], None)
+        specialpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','DATAPACKS','SPIGET_RESOURCES','ICON',], None)
         env = {'intpropenv':intpropenv,'strpropenv':strpropenv,'boolpropenv':boolpropenv,'specialpropenv':specialpropenv}
 
 
@@ -128,26 +127,22 @@ class MC(commands.Cog):
                 for types in env:                       
                     for variables in env[types]:
                         if oldvariables in env[types]:
-                            types[oldvariables]=oldenvdict[oldvariables]
+                            env[types][oldvariables] = oldenvdict[oldvariables]
 
-        #the thing down here doesnt work as expected -> $set test ENABLE_COMMAND_BLOCK returns "Did not find ENABLE_COMMAND_BLOCK in valid environment variables. Please try again"
-        #----------------------------------------------------------------------------------------------------------
         if len(args)>0: 
             arglist = args.split()
             for a in arglist:
                 try:
                     temp = a.split('=')
-                    if temp[0] in intpropenv:
-                        try:
-                            intpropenv[temp[0]]=int(temp[1])
-                        finally:
-                            raise IndexError('did not enter a integer')
-                    elif temp[0] in strpropenv:
-                        try:
-                            strpropenv[temp[0]]=str(temp[1])
-                        finally:
-                            raise IndexError('did not enter a integer')
-                    elif temp[0] in boolpropenv:
+                    if temp[0] in env['intpropenv']:
+                        intpropenv[temp[0]]=int(temp[1])
+                        # try:
+                        #     intpropenv[temp[0]]=int(temp[1])
+                        # finally:
+                        #     raise IndexError('did not enter a integer')
+                    elif temp[0] in env['strpropenv']:
+                        strpropenv[temp[0]]=str(temp[1])
+                    elif temp[0] in env['boolpropenv']:
                         if (temp[1].lower() == "true" or temp[1].lower() == "false"):
                             boolpropenv[temp[0]]=(temp[1])
                         else:
@@ -158,18 +153,18 @@ class MC(commands.Cog):
                 except:
                         await ctx.send("Error reading values. Check your spelling and try again")
                         return
-            #----------------------------------------------------------------------------------------------------------
 
             #__setting the new environment variables as a new container while mounting the old volume__
             with PodmanClient(base_url=uri) as client:
                 processname = name + "." + str(ctx.guild.id)
                 try:
                     env = {**intpropenv, **strpropenv, **boolpropenv, **specialpropenv}
+                    mountpoint = [{'type': 'bind', 'source': process.inspect()["Mounts"][0]["Source"], 'target': '/data'}]
                     try:
                         client.containers.get(processname).stop()
-                        client.containers.get(processname).remove()
                     finally:
-                        client.containers.run('itzg/minecraft-server', environment=env, ports={'25565':'25565'}, name=processname, mounts=[{'type': 'bind', 'source': process.inspect()["Mounts"][0]["Source"], 'target': '/data'}])    
+                        client.containers.get(processname).remove()
+                        client.containers.run('itzg/minecraft-server', environment=env, ports={'25565':'25565'}, name=processname, mounts=mountpoint, detach=True)    
 
                 except:
                     await ctx.send("Failed to start. Check your parameters and try again")
