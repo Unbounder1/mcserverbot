@@ -2,24 +2,36 @@ from discord import Guild
 from discord.ext import commands
 from discord.ext.commands import Context
 from tinydb import TinyDB, Query, where
-import re
+from podman import PodmanClient
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
+uri = os.getenv('URI')
 class MC(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = TinyDB('serverDB.json').table(name='_default', cache_size = 0)
 
     @commands.command()
-    async def create(self, ctx: Context, name: str, *, args):
+    async def create(self, ctx: Context, name: str, mctype: str, *, args):
 
         if self.get(ctx, name):
             await ctx.send('Server with name already exists.')
             return
+        #__checking arguments__
+        mainenv = {'VERSION': None,'MAX_MEMORY': None}
+        if len(args)>0:
+            arglist = args.split()
+            for a in arglist:
+                temp = a.split("=")
+                if temp[0] in mainenv:
+                    mainenv[temp[0]]=temp[1]
+                else:
+                    await ctx.send("Please check your spelling for " + temp[0])
+                    return
+        
 
-        #self.db.insert({
-        #    'serverId': ctx.guild.id,
-        #    'name': name,
-        #})
-        mctype = mcversion = memory = seed = ops = whitelist = ftb = forgeapi = servername = difficulty = spawnprot = viewdistance = maxbuild = hardcore = commandblock = maxworldsize = maxplayers = motd = enforcewhitelist = world = modpack = vanillatweaks = spigetresources = datapacks = icon = None
         #mandatory things
         defaultenv = {
                 'GUI': "false", 
@@ -38,33 +50,135 @@ class MC(commands.Cog):
                 'MAX_TICK_TIME' : "-1",
                 'ENABLE_AUTOPAUSE': "true",
                 'AUTOPAUSE_TIMEOUT_EST': "3600",
+                'AUTOPAUSE_KNOCK_INTERFACE' : "eno1",
 
                 #autostop stuff
-                'ENABLE_AUTOSTOP': "TRUE",
+                'ENABLE_AUTOSTOP': "false",
                 'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
 
         }
-        mainenv = {'TYPE': mctype, 'VERSION': mcversion,'MAX_MEMORY': memory}
-        intpropenv = {'SEED': seed,'SPAWN_PROTECTION': spawnprot,'VIEW_DISTANCE': viewdistance,'MAX_BUILD_HEIGHT': maxbuild,'MAX_WORLD_SIZE': maxworldsize,'MAX_PLAYERS': maxplayers}
-        strpropenv = {'OPS': ops,'SERVER_NAME': servername,'MOTD': motd}
-        specialpropenv = {'DIFFICULTY': difficulty, 'world': world,'VANILLATWEAKS_SHARECODE': vanillatweaks,'DATAPACKS': datapacks,'SPIGET_RESOURCES': spigetresources, 'ICON': icon,'WHITELIST': whitelist}
-        boolpropenv = {'ENABLE_COMMAND_BLOCK': commandblock,'HARDCORE': hardcore}
+        env = {**defaultenv, **mainenv}
         #add modpack stuff later --------------------------
+        await ctx.send(f'Server with name "{name}" with added.')
 
-        print (args)
-        if len(args)>0:
-            for variables in mainenv.keys():
-                temp1 = variables + '\S*(\s|$)'
-                print (temp1)
-                temp2 = re.search(temp1,args, flags=re.IGNORECASE|re.MULTILINE)
-                if temp2:
-                    mainenv[variables] = re.split('=', temp2.group(), flags=re.IGNORECASE|re.MULTILINE)[1]
-                    print (temp2.group())
-            print (mainenv)
-        await ctx.send(f'Server with name "{name}" added.')
-    #@commands.command()
-    #async def set(self, ctx: Context, name: str, *, args):
+        #__starting the podman container__
+        with PodmanClient(base_url=uri) as client:
+            
+            try:
+                servername = name + "." + str(ctx.guild.id)
+                client.containers.run('itzg/minecraft-server', environment=env, ports={'25566':'25565'}, name=servername, detach=True)
+                
+            except:
+                try:
+                    process=client.containers.get(servername)
+                    process.stop()
+                    process.remove()
+                finally:
+                    await ctx.send("Something went wrong. Try again.")
+                    return
+            process=client.containers.get(servername)
+            is_starting = True
+            is_loading = True
+            is_finished = True
 
+            while is_starting:
+                for i in process.logs():
+                    if i.decode('utf-8').find("Starting the Minecraft server") != -1:
+                        await ctx.send ("Starting the Minecraft server")
+                        is_starting= False
+            # while is_loading:
+            #     for i in process.logs():
+            #         if i.decode('utf-8').find("Preparing level") != -1:
+            #             message = await ctx.send ("Preparing level")
+            #             await message.edit(i.decode('utf-8'))
+            #             is_loading= False
+            #------------------ gonna figure ^ out later want it to edit message with the loading percentage
+            while is_finished:
+                for i in process.logs():
+                    if i.decode('utf-8').find("Time elapsed") != -1:
+                        await ctx.send ("The server is up!")
+                        is_finished= False
+
+    @commands.command()
+    async def set(self, ctx: Context, name: str, *, args):
+        #ADD CHECK FOR IF THE THING EXISTS OR NOT <-----------------------
+
+        intpropenv = strpropenv = specialpropenv = boolpropenv = {}
+        intpropenv.fromkeys(['SEED','SPAWN_PROTECTION''VIEW_DISTANCE''MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
+        strpropenv.fromkeys(['OPS','SERVER_NAME','MOTD','DIFFICULTY','WORLD',])
+        boolpropenv.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','WHITELIST'])
+        specialpropenv.fromkeys(['VANILLATWEAKS_SHARECODE','DATAPACKS','SPIGET_RESOURCES','ICON',])
+
+        env = {'intpropenv':intpropenv,'strpropenv':strpropenv,'boolpropenv':boolpropenv,'specialpropenv':specialpropenv}
+
+
+        with PodmanClient(base_url=uri) as client:
+            processname = name + "." + str(ctx.guild.id)
+            process=client.containers.get(processname)
+            oldenvlst=process.inspect()["Config"]["Env"]
+            oldenvdict = {}
+
+            #__converting the list output of 'podman inspect' to a dictionary format__
+            for variables in oldenvlst:             
+                i=0
+                templst = variables.split("=")
+                oldenvdict[templst[0]] = templst[1]
+            #__moving already set variables to empty env variables__
+            for oldvariables in oldenvdict:
+                for types in env:                       
+                    for variables in env[types]:
+                        if oldvariables in env[types]:
+                            types[oldvariables]=oldenvdict[oldvariables]
+
+        #the thing down here doesnt work as expected -> $set test ENABLE_COMMAND_BLOCK returns "Did not find ENABLE_COMMAND_BLOCK in valid environment variables. Please try again"
+        #----------------------------------------------------------------------------------------------------------
+        if len(args)>0: 
+            arglist = args.split()
+            for a in arglist:
+                try:
+                    temp = a.split('=')
+                    if temp[0] in intpropenv:
+                        try:
+                            intpropenv[temp[0]]=int(temp[1])
+                        finally:
+                            raise IndexError('did not enter a integer')
+                    elif temp[0] in strpropenv:
+                        try:
+                            strpropenv[temp[0]]=str(temp[1])
+                        finally:
+                            raise IndexError('did not enter a integer')
+                    elif temp[0] in boolpropenv:
+                        if (temp[1].lower() == "true" or temp[1].lower() == "false"):
+                            boolpropenv[temp[0]]=(temp[1])
+                        else:
+                            raise IndexError('did not enter a valid boolean')
+                    else:
+                        await ctx.send(f"Did not find {temp[0]} in valid environment variables. Please try again")
+                        return
+                except:
+                        await ctx.send("Error reading values. Check your spelling and try again")
+                        return
+            #----------------------------------------------------------------------------------------------------------
+
+            #__setting the new environment variables as a new container while mounting the old volume__
+            with PodmanClient(base_url=uri) as client:
+                processname = name + "." + str(ctx.guild.id)
+                try:
+                    env = {**intpropenv, **strpropenv, **boolpropenv, **specialpropenv}
+                    try:
+                        client.containers.get(processname).stop()
+                        client.containers.get(processname).remove()
+                    finally:
+                        client.containers.run('itzg/minecraft-server', environment=env, ports={'25565':'25565'}, name=processname, mounts=[{'type': 'bind', 'source': process.inspect()["Mounts"][0]["Source"], 'target': '/data'}])    
+
+                except:
+                    await ctx.send("Failed to start. Check your parameters and try again")
+                    try:
+                        process=client.containers.get(processname)
+                        process.stop()
+                        process.remove()
+                    finally:
+                        return
 
     @commands.command()
     async def delete(self, ctx: Context, name: str):
@@ -73,6 +187,12 @@ class MC(commands.Cog):
             await ctx.send('Server does not exist.')
             return
         await ctx.send(f'Server with name "{name}" deleted.')
+        with PodmanClient(base_url=uri) as client:
+            process=client.containers.get(name + "." + str(ctx.guild.id))
+            process.stop()
+            process.remove()
+
+
 
     @commands.command()
     async def list(self, ctx: Context):
