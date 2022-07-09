@@ -1,6 +1,6 @@
 # mcserverbot
 Update: Very base function works<br/>
--Functions-<br/>
+-Functions-<br/><br/><br/>
 have a changeable operand or whatever its called like $command can change to .command<br/>
 $copy -> copys a server<br/>
 $send [server] [console command] -> sends some server commands<br/>
