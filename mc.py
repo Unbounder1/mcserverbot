@@ -1,4 +1,3 @@
-from http.client import NOT_FOUND
 from discord import Guild
 from discord.ext import commands
 from discord.ext.commands import Context
@@ -61,19 +60,33 @@ class MC(commands.Cog):
         }
         env = {**defaultenv, **mainenv}
         #add modpack stuff later --------------------------
+
+        port = None
+        for p in range (int(os.getenv('PORT_MIN')),int(os.getenv('PORT_MAX'))):
+            portchecker = Query()
+            if self.db.contains(portchecker.port == p):
+                continue
+            else:
+                port = p
+                break
+        
         self.db.insert({
-           'serverId': ctx.guild.id,
-           'name': name,
-           'port': "",
-           'ready': False
+        'serverId': ctx.guild.id,
+        'name': name,
+        'port': port,
         })
+
+
 
         await ctx.send(f'Server with name "{name}" with added.')
         processname = name + "." + str(ctx.guild.id)
-        port = 25565 #    TEMP TEMPTEMP TMEPMPTMEPMTPEMTMEPPMETMPEMPEMTPEMPT TEMPORARY
         #__starting the podman container__
+
         if podscript.create(processname, env, port)==0:
             await ctx.send("Something went wrong. Check your spelling and try again")
+            self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
+            return
+
         with PodmanClient(base_url=uri) as client:
                 message = await ctx.send ("Starting the Minecraft server")
                 process=client.containers.get(processname)
@@ -102,6 +115,8 @@ class MC(commands.Cog):
                     logs = list(process.logs(since=1))
                     await message.edit(content = logs[-1].decode('utf-8'))
                 await message.edit(content = "The server is up!")
+                return
+
 
     @commands.command()
     async def set(self, ctx: Context, name: str, *, args):
@@ -172,8 +187,6 @@ class MC(commands.Cog):
                 pass
 
 
-
-
     @commands.command()
     async def list(self, ctx: Context):
         servers = [entry['name'] for entry in self.get(ctx)]
@@ -181,6 +194,50 @@ class MC(commands.Cog):
             await ctx.send('No servers')
             return
         await ctx.send('\n'.join(servers))
+    @commands.command()
+    async def status(self,ctx: Context, name: str):
+        processname = name + "." + str(ctx.guild.id)
+        message = podscript.status(processname)
+        await ctx.send(f'The server is currently: {message}')
+        return
+    @commands.command()
+    async def stop(self,ctx: Context, name: str):
+        processname = name + "." + str(ctx.guild.id)
+        await ctx.send(podscript.stop(processname))
+
+    @commands.command()
+    async def start(self,ctx: Context, name: str):
+        processname = name + "." + str(ctx.guild.id)
+        podscript.start(processname)
+        with PodmanClient(base_url=uri) as client:
+            message = await ctx.send ("Starting the Minecraft server")
+            process=client.containers.get(processname)
+            is_starting=is_loading=is_finishing=True
+            while is_starting:
+                sleep(1)
+                for i in process.logs(since=2):
+                    if i.decode('utf-8').find("Unpacking") != -1:
+                        await message.edit (content = "Started the Minecraft Server")
+                        is_starting= False
+                        break         
+            while is_loading:
+                sleep(1)
+                for i in process.logs(since=2):
+                    if i.decode('utf-8').find("[ServerMain/INFO]") != -1:
+                        await ctx.send("Preparing level")
+                        is_loading= False
+                        break
+            message = await ctx.send("Setting up the server")
+            while is_finishing:
+                sleep(1)
+                for i in process.logs(since=5):
+                    if i.decode('utf-8').find('For help') != -1:
+                        is_finishing= False
+                        break
+                logs = list(process.logs(since=1))
+                await message.edit(content = logs[-1].decode('utf-8'))
+            await message.edit(content = "The server is up!")
+            return
 
     def get(self, ctx: Context, name: str = None):
         id: Guild.id = ctx.guild.id
