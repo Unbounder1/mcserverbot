@@ -5,7 +5,9 @@ from tinydb import TinyDB, Query, where
 from podman import PodmanClient
 from dotenv import load_dotenv
 from time import sleep
+
 import podscript
+import cloudscript
 import os
 load_dotenv()
 
@@ -77,7 +79,6 @@ class MC(commands.Cog):
         })
 
 
-
         await ctx.send(f'Server with name "{name}" with added.')
         processname = name + "." + str(ctx.guild.id)
         #__starting the podman container__
@@ -86,6 +87,8 @@ class MC(commands.Cog):
             await ctx.send("Something went wrong. Check your spelling and try again")
             self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
             return
+        
+        finalip = cloudscript.create(name, ctx.guild.id, port)
 
         with PodmanClient(base_url=uri) as client:
                 message = await ctx.send ("Starting the Minecraft server")
@@ -114,12 +117,17 @@ class MC(commands.Cog):
                             break
                     logs = list(process.logs(since=1))
                     await message.edit(content = logs[-1].decode('utf-8'))
-                await message.edit(content = "The server is up!")
+                await message.edit(content = f"The server is up on {finalip}")
                 return
 
 
     @commands.command()
     async def set(self, ctx: Context, name: str, *, args):
+        if not self.get(ctx, name):
+            await ctx.send('Server with this name does not exist.')
+            return
+            
+        message = await ctx.send("Attempting to set variables")
         #ADD CHECK FOR IF THE THING EXISTS OR NOT <-----------------------
         processname = name + "." + str(ctx.guild.id)
         intpropenv = strpropenv = specialpropenv = boolpropenv = {}
@@ -169,15 +177,19 @@ class MC(commands.Cog):
 
         #__setting the new environment variables as a new container while mounting the old volume__
             env = {**intpropenv, **strpropenv, **specialpropenv,**boolpropenv}
-            await ctx.send(podscript.replace(processname, env, port="25565"))
+            portdict = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
+            port = portdict[0]['port']
+            await ctx.send(podscript.replace(processname, env, port))
 
     @commands.command()
-    async def delete(self, ctx: Context, name: str):
+    async def delete(self, ctx: Context, name: str):        
         ids = self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
         if len(ids) == 0:
             await ctx.send('Server does not exist.')
             return
         await ctx.send(f'Server with name "{name}" deleted.')
+        try: cloudscript.delete(name, ctx.guild.id)
+        except: pass
         with PodmanClient(base_url=uri) as client:
             try:
                 process=client.containers.get(name + "." + str(ctx.guild.id))
@@ -196,21 +208,31 @@ class MC(commands.Cog):
         await ctx.send('\n'.join(servers))
     @commands.command()
     async def status(self,ctx: Context, name: str):
+        if not self.get(ctx, name):
+            await ctx.send('Server with this name does not exist.')
+            return
         processname = name + "." + str(ctx.guild.id)
         message = podscript.status(processname)
-        await ctx.send(f'The server is currently: {message}')
+        await ctx.send(f'The server is currently: `{message}`')
         return
     @commands.command()
     async def stop(self,ctx: Context, name: str):
+        if not self.get(ctx, name):
+            await ctx.send('Server with this name does not exist.')
+            return
+        message = await ctx.send("Attempting to stop the server...")
         processname = name + "." + str(ctx.guild.id)
-        await ctx.send(podscript.stop(processname))
+        await message.edit(content = podscript.stop(processname))
 
     @commands.command()
     async def start(self,ctx: Context, name: str):
+        if not self.get(ctx, name):
+            await ctx.send('Server with this name does not exist.')
+            return
         processname = name + "." + str(ctx.guild.id)
         podscript.start(processname)
         with PodmanClient(base_url=uri) as client:
-            message = await ctx.send ("Starting the Minecraft server")
+            message = await ctx.send ("Starting the Minecraft server...")
             process=client.containers.get(processname)
             is_starting=is_loading=is_finishing=True
             while is_starting:
@@ -224,7 +246,7 @@ class MC(commands.Cog):
                 sleep(1)
                 for i in process.logs(since=2):
                     if i.decode('utf-8').find("[ServerMain/INFO]") != -1:
-                        await ctx.send("Preparing level")
+                        await ctx.send("Preparing world...")
                         is_loading= False
                         break
             message = await ctx.send("Setting up the server")
@@ -238,6 +260,9 @@ class MC(commands.Cog):
                 await message.edit(content = logs[-1].decode('utf-8'))
             await message.edit(content = "The server is up!")
             return
+    @commands.command()
+    async def ip(self,ctx: Context, name: str):
+        await ctx.send(f'The ip for "{name}" is:\n\n`{cloudscript.findip(name, ctx.guild.id)}`')
 
     def get(self, ctx: Context, name: str = None):
         id: Guild.id = ctx.guild.id
