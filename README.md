@@ -8,7 +8,7 @@ give more feedback for commands like $set <br/>
 document all environment variables in something (maybe like $set help to get environment variable list and stuff)<br/>
 make $help prettier<br/>
 implement automatic cloudflare dns stuff<br/>
-
+pipe most errors to an output 
 
 Later: 
 settings for modpack, vanilla, spigot, etc
