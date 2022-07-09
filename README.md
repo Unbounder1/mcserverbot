@@ -1,13 +1,13 @@
 # mcserverbot
-Update: Very base function works
-- Functions -
-have a changeable operand or whatever its called like $command can change to .command
+Update: Very base function works<br/>
+-Functions-<br/>
+have a changeable operand or whatever its called like $command can change to .command<br/>
 $copy -> copys a server<br/>
 $send [server] [console command] -> sends some server commands<br/>
-give more feedback for commands like $set
-document all environment variables in something (maybe like $set help to get environment variable list and stuff)
-make $help prettier
-implement automatic cloudflare dns stuff
+give more feedback for commands like $set <br/>
+document all environment variables in something (maybe like $set help to get environment variable list and stuff)<br/>
+make $help prettier<br/>
+implement automatic cloudflare dns stuff<br/>
 
 
 Later: 
