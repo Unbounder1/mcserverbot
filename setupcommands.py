@@ -1,4 +1,4 @@
-from discord import Guild
+import discord
 from discord.ext import commands
 from discord.ext.commands import Context
 from tinydb import TinyDB, where
@@ -19,4 +19,3 @@ class setup(commands.Cog):
 
         self.db.upsert({'guildId': ctx.guild.id, 'domainprefix': name}, where('guildId' == ctx.guild.id))
         await ctx.send(f"Changed this server's prefix to {name}")
-    
