@@ -83,12 +83,12 @@ def addplayers(whichlst: str, name: list, processname: str):
 
     if whichlst.lower() == 'whitelist':
         for user in name:
-            command = "podman-remote exec " + processname + " rcon-cli " + "whitelist add" + user
+            command = "podman-remote exec " + processname + " rcon-cli " + "whitelist add" + user + " >/dev/null 2>&1"
             os.system(command)
         return 1
     elif whichlst.lower() == 'ops':
         for user in name:
-            command = "podman-remote exec " + processname + " rcon-cli " + "op " + user
+            command = "podman-remote exec " + processname + " rcon-cli " + "op " + user + " >/dev/null 2>&1"
             print (command)
             os.system(command)
         return 1

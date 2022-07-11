@@ -1,3 +1,4 @@
+from ast import Str
 from discord import Guild
 from discord.ext import commands
 from discord.ext.commands import Context
@@ -24,10 +25,13 @@ class MC(commands.Cog):
 
     @commands.command()
     async def create(self, ctx: Context, name: str, mctype: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
         if self.get(ctx, name):
             await ctx.send('Server with name already exists.')
             return
-        
+
         mainenv = {'VERSION': None,'MAX_MEMORY': None}
         #__setting up the universal env variables__
         if len(args)>0 and args!="0":
@@ -86,22 +90,10 @@ class MC(commands.Cog):
                     temp = a.split("=")
                     #__malware/validity checker for links
                     if temp[0] in linkpropenv:
-                        # with vt.Client(CLIENT_TOKEN) as client:
-                        #     analysis = await client.scan_url_async(temp[1], wait_for_completion=True)
-                        #     if analysis.stats['malicious'] > 0:
-                        #         await ctx.send("Please contact bot owner to install")
-                        #         return
-                        #     elif analysis.stats['suspicious'] > 5:
-                        #         await ctx.send("Please contact bot owner to install")
-                        #         return 
-                        #     else:
-                        #         await ctx.send(analysis.stats)
-                        #         return 
-
                         analysis  = await cloudscript.virustest(temp[1])
                         if analysis == '1':
                             linkpropenv[temp[0]]=temp[1]
-                            await ctx.send("The links are somewhat valid")
+                            await ctx.send("Check 1: Links are valid")
                         else:
                             await ctx.send(analysis)
                     elif temp[0] in otherpropenv:
@@ -139,12 +131,17 @@ class MC(commands.Cog):
             else:
                 port = p
                 break
-        
+        owners = os.getenv('BOT_OWNERS').split(',')
+        owners.append(str(ctx.author.id))
+        owners = list(set(owners))
+        moderators = []
         self.db.insert({
         'serverId': ctx.guild.id,
         'name': name,
         'port': port,
-        'type': mctype
+        'type': mctype,
+        'owners': owners,
+        'moderators': moderators
         })
 
 
@@ -195,10 +192,15 @@ class MC(commands.Cog):
     #     await ctx.send("help thing")
     @commands.command()
     async def set(self, ctx: Context, name: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
-            
+        if not self.perms(ctx, name, str(ctx.author.id)):
+            await ctx.send("You do not have permissions to do this")
+            return
         message = await ctx.send("Attempting to set variables")
         #ADD CHECK FOR IF THE THING EXISTS OR NOT <-----------------------
         processname = name + "." + str(ctx.guild.id)
@@ -346,7 +348,13 @@ class MC(commands.Cog):
             await ctx.send(podscript.replace(processname, env, port))
 
     @commands.command()
-    async def delete(self, ctx: Context, name: str):        
+    async def delete(self, ctx: Context, name: str):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return  
+        if not self.perms(ctx, name, str(ctx.author.id)):
+            await ctx.send("You do not have permissions to do this")
+            return
         ids = self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
         if len(ids) == 0:
             await ctx.send('Server does not exist.')
@@ -365,6 +373,9 @@ class MC(commands.Cog):
 
     @commands.command()
     async def list(self, ctx: Context):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
         servers = [entry['name'] for entry in self.get(ctx)]
         if len(servers) == 0:
             await ctx.send('No servers')
@@ -372,6 +383,9 @@ class MC(commands.Cog):
         await ctx.send('\n'.join(servers))
     @commands.command()
     async def status(self,ctx: Context, name: str):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
@@ -381,6 +395,12 @@ class MC(commands.Cog):
         return
     @commands.command()
     async def stop(self,ctx: Context, name: str):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        if not self.perms(ctx, name, str(ctx.author.id)):
+            await ctx.send("You do not have permissions to do this")
+            return
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
@@ -390,6 +410,12 @@ class MC(commands.Cog):
 
     @commands.command()
     async def start(self,ctx: Context, name: str):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        if not self.perms(ctx, name, str(ctx.author.id)):
+            await ctx.send("You do not have permissions to do this")
+            return
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
@@ -426,6 +452,9 @@ class MC(commands.Cog):
             return
     @commands.command()
     async def ip(self,ctx: Context, name: str):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
@@ -433,12 +462,90 @@ class MC(commands.Cog):
 
     @commands.command()
     async def addplayer(self,ctx: Context, servername: str, whichlst: str, *, arg):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        if not self.perms(ctx, name, str(ctx.author.id)):
+            await ctx.send("You do not have permissions to do this")
+            return
         if not self.get(ctx, servername):
             await ctx.send('Server with this name does not exist.')
             return
         name = arg.split(",")
         podscript.addplayers(whichlst,name,servername + "." + str(ctx.guild.id))
+    @commands.command()
+    async def addmoderator(self,ctx: Context, name: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        id: Guild.id = ctx.guild.id
+        if not self.perms(ctx, name, str(ctx.author.id)): 
+            await ctx.send("You do not have permissions to do this")
+            return
+        lst = args.split()
+        userlst = []
+        for user in lst:
+            user = user.replace("<","")
+            user = user.replace(">","")
+            user = user.replace("@","")
+            user = user.replace("!","")
+            userlst.append(str(user))
+        for user in self.db.search((where('serverId') == id) & (where('name') == name))[0]['moderators']:
+            userlst.append(user)
+            await ctx.send(f"Added <@{user}> to list of moderators")
+        userlst = list(set(userlst))
 
+        self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
+    @commands.command()
+    async def removemoderator(self,ctx: Context, name: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        id: Guild.id = ctx.guild.id
+        if not self.perms(ctx, name, str(ctx.author.id)):
+            await ctx.send("You do not have permissions to do this")
+            return
+        moderatorlist = self.db.search((where('serverId') == id) & (where('name') == name))[0]['moderators']
+        lst = args.split()
+        userlst = []
+        for user in lst:
+            user = user.replace("<","")
+            user = user.replace(">","")
+            user = user.replace("@","")
+            user = user.replace("!","")
+            userlst.append(str(user))
+        for user in userlst:
+            try: 
+                userlst.remove(user)
+                await ctx.send(f"Removed <@{user}> to list of moderators")
+            except:
+                await ctx.send(f"<@{user}> is not on the list of moderators")
+        self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
+            
+    @commands.command()
+    async def test(self,ctx: Context, name: str, *, args):
+        id: Guild.id = ctx.guild.id
+        await ctx.send(self.db.search((where('serverId') == id) & (where('name') == name)))
+        return
+    def perms(self, ctx: Context, name: str, user : str):
+        id: Guild.id = ctx.guild.id
+        for owners in self.db.search((where('serverId') == id) & (where('name') == name))[0]['owners']:
+            if owners == user:
+                return True     
+        for moderators in self.db.search((where('serverId') == id) & (where('name') == name))[0]['moderators']:
+            if moderators == user:
+                return True
+
+ 
+        return False
+        
+    def blacklisted(self, user: str):
+        bannedlst = os.getenv('BOT_BLACKLISTED').split()
+        for banned in bannedlst:
+            if user == banned:
+                return True
+            else:
+                return False
     def get(self, ctx: Context, name: str = None):
         id: Guild.id = ctx.guild.id
         if name:
