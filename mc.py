@@ -5,13 +5,13 @@ from tinydb import TinyDB, Query, where
 from podman import PodmanClient
 from dotenv import load_dotenv
 from time import sleep
-import asyncio
 import nest_asyncio
+import asyncio
 nest_asyncio.apply()
-import vt
 import podscript
 import cloudscript
 import os
+import vt
 load_dotenv()
 
 uri = os.getenv('URI')
@@ -31,7 +31,7 @@ class MC(commands.Cog):
         mainenv = {'VERSION': None,'MAX_MEMORY': None}
         #__setting up the universal env variables__
         if len(args)>0 and args!="0":
-            argslist = args.split()
+            argslist = args.split(",")
             for a in argslist:
                 temp = a.split("=")
                 if temp[0] == "MAX_MEMORY":
@@ -55,6 +55,7 @@ class MC(commands.Cog):
                     'REPLACE_ENV_IN_PLACE': "false",
                     'OVERRIDE_OPS': "false",
                     'OVERRIDE_WHITELIST': "false",
+                    'REMOVE_OLD_DATAPACKS': 'true',
                     
                     #RCON
                     'ENABLE_RCON': "true",
@@ -80,57 +81,45 @@ class MC(commands.Cog):
             seed = None
 
             if len(args)>0 and args!="0":
-                arglist = args.split()
+                arglist = args.split(",")
                 for a in arglist:
                     temp = a.split("=")
                     #__malware/validity checker for links
                     if temp[0] in linkpropenv:
-                        analysis = cloudscript.virustest(temp[1])
+                        # with vt.Client(CLIENT_TOKEN) as client:
+                        #     analysis = await client.scan_url_async(temp[1], wait_for_completion=True)
+                        #     if analysis.stats['malicious'] > 0:
+                        #         await ctx.send("Please contact bot owner to install")
+                        #         return
+                        #     elif analysis.stats['suspicious'] > 5:
+                        #         await ctx.send("Please contact bot owner to install")
+                        #         return 
+                        #     else:
+                        #         await ctx.send(analysis.stats)
+                        #         return 
+
+                        analysis  = await cloudscript.virustest(temp[1])
                         if analysis == '1':
                             linkpropenv[temp[0]]=temp[1]
+                            await ctx.send("The links are somewhat valid")
                         else:
                             await ctx.send(analysis)
                     elif temp[0] in otherpropenv:
                         otherpropenv[temp[0]]=temp[1]
                     elif temp[0] == "SEED":
                         seed = temp[1]
+                    elif temp[0] in mainenv:
+                        continue
                     else:
                         await ctx.send("Please check your spelling for " + temp[0])
-                        return           
-            # with vt.Client(CLIENT_TOKEN) as client:
-            #     if len(args)>0 and args!="0":
-            #         arglist = args.split()
-            #         for a in arglist:
-            #             temp = a.split("=")
-            #             #__malware/validity checker for links
-            #             if temp[0] in linkpropenv:
-            #                 analysis = client.scan_url(temp[1])
-            #                 try:
-            #                     if analysis.stats['malicious'] > 0:
-            #                         await ctx.send("Please contact bot owner to install")
-            #                         return
-            #                     elif analysis.stats['suspicious'] > 5:
-            #                         ctx.send("Please contact bot owner to install")
-            #                         return
-            #                     else:
-            #                         linkpropenv[temp[0]]=temp[1]
-            #                 except:
-            #                     await ctx.send("The link does not seem to be valid or something went wrong")
-            #                     return
-            #             elif temp[0] in otherpropenv:
-            #                 otherpropenv[temp[0]]=temp[1]
-            #             elif temp[0] == "SEED":
-            #                 seed = temp[1]
-            #             else:
-            #                 await ctx.send("Please check your spelling for " + temp[0])
-            #                 return           
+                        return               
                 env = {**defaultenv, **mainenv, **linkpropenv, **otherpropenv, 'SEED': seed, 'TYPE': mctype.upper()}
 
 
         #__checking universal arguments__
         
         # if len(args)>0 and args!="0":
-        #     arglist = args.split()
+        #     arglist = args.split(",")
         #     for a in arglist:
         #         temp = a.split("=")
         #         if temp[0] in mainenv:
@@ -213,13 +202,40 @@ class MC(commands.Cog):
         message = await ctx.send("Attempting to set variables")
         #ADD CHECK FOR IF THE THING EXISTS OR NOT <-----------------------
         processname = name + "." + str(ctx.guild.id)
+        defaultenv = {
+            'GUI': "false", 
+            'EULA': "true", 
+            'INIT_MEMORY': "1G",
+
+            'OVERRIDE_SERVER_PROPERTIES' : "true", 
+            'REPLACE_ENV_IN_PLACE': "false",
+            'OVERRIDE_OPS': "false",
+            'OVERRIDE_WHITELIST': "false",
+            'REMOVE_OLD_DATAPACKS': 'true',
+            
+            #RCON
+            'ENABLE_RCON': "true",
+            'RCON_PASSWORD': "minecraft", #Advised to change this
+            #autopause stuff
+
+            'MAX_TICK_TIME' : "-1",
+            'ENABLE_AUTOPAUSE': "true",
+            'AUTOPAUSE_TIMEOUT_EST': "3600",
+            'AUTOPAUSE_KNOCK_INTERFACE' : "eno1",
+
+            #autostop stuff
+            'ENABLE_AUTOSTOP': "false",
+            'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
+    }
+
         intpropenv = strpropenv = specialpropenv = boolpropenv = {}
-        intpropenv = dict.fromkeys(['SEED','SPAWN_PROTECTION','VIEW_DISTANCE','MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
-        strpropenv = dict.fromkeys(['OPS','SERVER_NAME','MOTD','DIFFICULTY','MAX_MEMORY'], None)
+        intpropenv = dict.fromkeys(['TYPE','SPAWN_PROTECTION','VIEW_DISTANCE','MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
+        strpropenv = dict.fromkeys(['OPS','SERVER_NAME','MOTD','DIFFICULTY'], None)
         boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','WHITELIST'], None)
-        linkpropenv = dict.fromkeys(['DATAPACKS','ICON','WORLD'], None)
+        linkpropenv = dict.fromkeys(['DATAPACKS','ICON'], None)
         otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
-        env = {'intpropenv':intpropenv,'strpropenv':strpropenv,'boolpropenv':boolpropenv,'linkpropenv':linkpropenv,'otherpropenv':otherpropenv}
+        maxmemory = {'MAX_MEMORY': None}
+        env = {'intpropenv':intpropenv,'strpropenv':strpropenv,'boolpropenv':boolpropenv,'linkpropenv':linkpropenv,'otherpropenv':otherpropenv, 'maxmemory': maxmemory}
 
 
         oldenvlst = podscript.findenv(processname)
@@ -236,10 +252,10 @@ class MC(commands.Cog):
                         env[types][oldvariables] = oldenvdict[oldvariables]
 
         if len(args)>0: 
-            arglist = args.split()
+            arglist = args.split(",")
             for a in arglist:
                 try:
-                    temp = a.split('=')
+                    temp = a.split("=")
                     if temp[0] in intpropenv:           
                         try:
                             intpropenv[temp[0]]=str(int(temp[1]))
@@ -253,20 +269,78 @@ class MC(commands.Cog):
                         else:
                             raise IndexError('did not enter a valid boolean')
                     elif temp[0] in linkpropenv:
-                        analysis = await cloudscript.virustest(temp[1])
-                        if analysis == '1':
-                            linkpropenv[temp[0]]=temp[1]
-                    elif temp[0] in otherpropenv:
-                        otherpropenv[temp[0]]=temp[1]
+                        if temp[0] == 'DATAPACKS':
+                            final = str(linkpropenv['DATAPACKS'])
+                            linklst = temp[1].split('|')
+                            lst = []
+                            for link in linklst:
+                                if (link=="add") or (link.lower()=="set"):
+                                    continue
+                                else:
+                                    analysis = await cloudscript.virustest(link)
+                                    if analysis == '1':
+                                        lst.append(link)
+                                    else:
+                                        await ctx.send(analysis)
+                                        return
+                            if linklst[0].lower() == "add":
+                                del linklst[0]
+                                for old in linkpropenv['DATAPACKS'].split(','):
+                                    lst.append(old)
+                                lst = list(dict.fromkeys(lst)) # removes duplicates
+                                linkpropenv['DATAPACKS'] = ",".join(lst)
+                            if linklst[0].lower() == "set":
+                                del linklst[0]
+                                lst = list(dict.fromkeys(lst)) # removes duplicates
+                                linkpropenv['DATAPACKS'] = ",".join(lst)
+                                print (linkpropenv['DATAPACKS'])
+                        else:
+                            analysis = await cloudscript.virustest(link)
+                            if analysis == '1':
+                                linkpropenv[temp[0]]=temp[1]
+                            else:
+                                await ctx.send(analysis)
+                    elif temp[0] in otherpropenv:                      
+                        linklst = temp[1].split('|')
+                        if linklst[0].lower() == "add":
+                            del linklst[0]
+                            for link in linklst:
+                                final = otherpropenv[temp[0]]
+                                oldlst = final.split(",")
+                                if link not in oldlst:
+                                    final = final + str(link)
+                                    final = final + ","
+                                else:
+                                    final = final + ","
+                            if final[-1:] == ",":
+                                final = final[:-1]
+                        if linklst[0].lower() == "set":
+                            del linklst[0]
+                            final = ""
+                            for link in linklst:
+                                final = final + str(link)
+                                final = final + ","
+                            if final[-1:] == ",":
+                                final = final[:-1]
+                        otherpropenv[temp[0]]=final
+                    elif temp[0] == 'MAX_MEMORY':
+                        try:
+                            if 2<int(temp[1])<8:
+                                maxmemory[temp[0]]=str(temp[1]) + "G"
+                            else:
+                                raise OverflowError
+                        except:
+                            await ctx.send("Memory can only be between 2 and 8.")
+                            return
                     else:
                         await ctx.send(f"Did not find {temp[0]} in valid environment variables. Please try again")
                         return
-                except:
+                except KeyboardInterrupt:
                         await ctx.send("Error reading values. Check your spelling and try again")
                         return
 
         #__setting the new environment variables as a new container while mounting the old volume__
-            env = {**intpropenv, **strpropenv,**boolpropenv, **linkpropenv, **otherpropenv}
+            env = {**intpropenv, **strpropenv,**boolpropenv, **linkpropenv, **otherpropenv, **maxmemory, **defaultenv}
             portdict = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
             port = portdict[0]['port']
             await ctx.send(podscript.replace(processname, env, port))
@@ -352,7 +426,18 @@ class MC(commands.Cog):
             return
     @commands.command()
     async def ip(self,ctx: Context, name: str):
+        if not self.get(ctx, name):
+            await ctx.send('Server with this name does not exist.')
+            return
         await ctx.send(f'The ip for "{name}" is:\n\n`{cloudscript.findip(name, ctx.guild.id)}`')
+
+    @commands.command()
+    async def addplayer(self,ctx: Context, servername: str, whichlst: str, *, arg):
+        if not self.get(ctx, servername):
+            await ctx.send('Server with this name does not exist.')
+            return
+        name = arg.split(",")
+        podscript.addplayers(whichlst,name,servername + "." + str(ctx.guild.id))
 
     def get(self, ctx: Context, name: str = None):
         id: Guild.id = ctx.guild.id
@@ -360,4 +445,3 @@ class MC(commands.Cog):
             return self.db.get((where('serverId') == id) & (where('name') == name))
         else:
             return self.db.search((where('serverId') == id))
-

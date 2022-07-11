@@ -1,3 +1,5 @@
+import nest_asyncio
+import asyncio
 import CloudFlare
 import os
 from tinydb import TinyDB, where, Query
@@ -46,13 +48,9 @@ def findip(inputname: str, guildid: int):
     prefix = db.search(query['guildId'] == guildid)[0]['domainprefix']
     name = prefix + "-" + inputname + "." + domain
     return name
-def virustest(url: str):
+async def virustest(url: str):
     with vt.Client(CLIENT_TOKEN) as client:
-        analysis = client.scan_url(url)
-        while True:
-            analysis = client.get_object("/analyses/{}", analysis.id)
-            if analysis.status == "completed":
-                break
+        analysis = await client.scan_url_async(url, wait_for_completion=True)
         if analysis.stats['malicious'] > 0:
             return "Please contact bot owner to install"
         elif analysis.stats['suspicious'] > 5:

@@ -79,3 +79,19 @@ def start(name: str):
         return "The container has been started"
     except:
         return "The container is already on"
+def addplayers(whichlst: str, name: list, processname: str):
+
+    if whichlst.lower() == 'whitelist':
+        for user in name:
+            command = "podman-remote exec " + processname + " rcon-cli " + "whitelist add" + user
+            os.system(command)
+        return 1
+    elif whichlst.lower() == 'ops':
+        for user in name:
+            command = "podman-remote exec " + processname + " rcon-cli " + "op " + user
+            print (command)
+            os.system(command)
+        return 1
+
+    else:
+        return 0
