@@ -538,7 +538,13 @@ class MC(commands.Cog):
 
  
         return False
-        
+
+    @commands.command()
+    async def on_command_error(ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("Must pass the required arguments")
+
+
     def blacklisted(self, user: str):
         bannedlst = os.getenv('BOT_BLACKLISTED').split()
         for banned in bannedlst:

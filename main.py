@@ -12,7 +12,7 @@ CLIENT_TOKEN = os.getenv('CLIENT_TOKEN')
 
 
 intents = discord.Intents.default()
-bot = commands.Bot(command_prefix='$', intents=intents)
+bot = commands.Bot(command_prefix='$',help_command=None,intents=intents)
 
 @bot.event
 async def on_ready():
@@ -22,5 +22,5 @@ async def on_ready():
 
 bot.add_cog(setup(bot))
 bot.add_cog(MC(bot))
-bot.help_command = MyHelp()
+bot.add_cog(MyHelp(bot))
 bot.run(CLIENT_TOKEN)
