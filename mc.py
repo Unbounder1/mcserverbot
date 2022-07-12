@@ -1,37 +1,44 @@
-from ast import Str
 from discord import Guild
 from discord.ext import commands
 from discord.ext.commands import Context
 from tinydb import TinyDB, Query, where
 from podman import PodmanClient
-from dotenv import load_dotenv
 from time import sleep
 import nest_asyncio
-import asyncio
 nest_asyncio.apply()
 import podscript
 import cloudscript
+from dotenv import load_dotenv
 import os
-import vt
 load_dotenv()
 
 uri = os.getenv('URI')
 CLIENT_TOKEN = os.getenv('VIRUSTOTAL_TOKEN')
+botowners = os.getenv('BOT_OWNERS').split(',')
 class MC(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = TinyDB('serverDB.json').table(name='_default', cache_size = 0)
-
-
+        self.conf = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
     @commands.command()
-    async def create(self, ctx: Context, name: str, mctype = "vanilla", *, args = 0):
+    async def create(self, ctx: Context, name: str, mctype = "vanilla", *, args = '0'):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
         if self.get(ctx, name):
             await ctx.send('Server with name already exists.')
             return
-
+        querycheck = Query()
+        maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
+        maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
+        if len(self.db.search(querycheck.owner == ctx.author.id))>=maxperuser:
+            if str(ctx.author.id) not in botowners:
+                await ctx.send(f"You can only have {maxperuser} server per person")
+                return
+        if len(self.db.search(querycheck.status == 'up'))>=maxservers:
+            if str(ctx.author.id) not in botowners:
+                await ctx.send(f"This server can only have {maxservers} servers up at once")
+                return
         mainenv = {'VERSION': None,'MAX_MEMORY': None}
         #__setting up the universal env variables__
         if len(args)>0 and args!="0":
@@ -42,10 +49,12 @@ class MC(commands.Cog):
                     try:
                         if 2<int(temp[1])<8:
                             mainenv[temp[0]]=str(temp[1]) + "G"
+                        elif ctx.author.id in botowners:
+                            mainenv[temp[0]]=str(temp[1]) + "G"
                         else:
                             raise OverflowError
                     except OverflowError:
-                        await ctx.send("Memory can only be set between 2 and 8 gigabytes")
+                        await ctx.send("Memory can only be set between 2 and 8 gigabytes. Ask the bot owner if you need more")
                         return
                 elif temp[0] == 'VERSION':
                      mainenv[temp[0]]=temp[1]
@@ -131,21 +140,20 @@ class MC(commands.Cog):
             else:
                 port = p
                 break
-        owners = os.getenv('BOT_OWNERS').split(',')
-        owners.append(str(ctx.author.id))
-        owners = list(set(owners))
+        owner = ctx.author.id
         moderators = []
         self.db.insert({
         'serverId': ctx.guild.id,
         'name': name,
         'port': port,
         'type': mctype,
-        'owners': owners,
-        'moderators': moderators
+        'owner': owner,
+        'moderators': moderators,
+        'status': 'up'
         })
 
 
-        await ctx.send(f'Server with name "{name}" with added.')
+        await ctx.send(f'Server with name "{name}" on "{mctype}" added.')
         processname = name + "." + str(ctx.guild.id)
 
         #__starting the podman container__
@@ -157,39 +165,9 @@ class MC(commands.Cog):
         finalip = cloudscript.create(name, ctx.guild.id, port)
 
         #__sending server status messages__
-        with PodmanClient(base_url=uri) as client:
-                message = await ctx.send ("Starting the Minecraft server")
-                process=client.containers.get(processname)
-                is_starting=is_loading=is_finishing=True
-                while is_starting:
-                    sleep(1)
-                    for i in process.logs(since=4):
-                        if i.decode('utf-8').find("[init]") != -1:
-                            await message.edit (content = "Started the Minecraft Server")
-                            is_starting= False
-                            break         
-                while is_loading:
-                    sleep(1)
-                    for i in process.logs(since=4):
-                        if i.decode('utf-8').find("INFO]") != -1:
-                            await ctx.send("Preparing level")
-                            is_loading= False
-                            break
-                message = await ctx.send("Setting up the server")
-                while is_finishing:
-                    sleep(1)
-                    for i in process.logs(since=5):
-                        if i.decode('utf-8').find('For help') != -1:
-                            is_finishing= False
-                            break
-                    logs = list(process.logs(since=1))
-                    await message.edit(content = logs[-1].decode('utf-8'))
-                await message.edit(content = f"The server is up on {finalip}")
-                return
-
-    # @commands.command()
-    # async def create(self, ctx: Context, help: str):
-    #     await ctx.send("help thing")
+        await self.startup(ctx,processname)
+        self.db.update({'status': 'up'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
+        return
     @commands.command()
     async def set(self, ctx: Context, name: str, *, args):
         if self.blacklisted(str(ctx.author.id)):
@@ -198,8 +176,8 @@ class MC(commands.Cog):
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
-        if not self.perms(ctx, name, str(ctx.author.id)):
-            await ctx.send("You do not have permissions to do this")
+        if not self.perms(ctx, name):
+            await ctx.send("Only the minecraft server owner and moderators can do this")
             return
         message = await ctx.send("Attempting to set variables")
         #ADD CHECK FOR IF THE THING EXISTS OR NOT <-----------------------
@@ -345,14 +323,14 @@ class MC(commands.Cog):
             portdict = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
             port = portdict[0]['port']
             await ctx.send(podscript.replace(processname, env, port))
-
+            self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def delete(self, ctx: Context, name: str):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return  
-        if not self.perms(ctx, name, str(ctx.author.id)):
-            await ctx.send("You do not have permissions to do this")
+        if not self.perms(ctx, name):
+            await ctx.send("Only the minecraft server owner and moderators can do this")
             return
         ids = self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
         if len(ids) == 0:
@@ -397,8 +375,8 @@ class MC(commands.Cog):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
-        if not self.perms(ctx, name, str(ctx.author.id)):
-            await ctx.send("You do not have permissions to do this")
+        if not self.perms(ctx, name):
+            await ctx.send("Only the minecraft server owner and moderators can do this")
             return
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
@@ -406,20 +384,175 @@ class MC(commands.Cog):
         message = await ctx.send(f"Stopping the server '{name}'...")
         processname = name + "." + str(ctx.guild.id)
         await message.edit(content = podscript.stop(processname))
-
+        self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def start(self,ctx: Context, name: str):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
-        if not self.perms(ctx, name, str(ctx.author.id)):
-            await ctx.send("You do not have permissions to do this")
+        if not self.perms(ctx, name):
+            await ctx.send("Only the minecraft server owner and moderators can do this")
             return
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
         processname = name + "." + str(ctx.guild.id)
         await ctx.send(podscript.start(processname))
+        await self.startup(ctx, processname)
+        self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
+    @commands.command()
+    async def ip(self,ctx: Context, name: str):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        if not self.get(ctx, name):
+            await ctx.send('Server with this name does not exist.')
+            return
+        await ctx.send(f'The ip for "{name}" is:\n\n`{cloudscript.findip(name, ctx.guild.id)}`')
+
+    @commands.command()
+    async def addplayer(self,ctx: Context, servername: str, whichlst: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        if not self.perms(ctx, servername):
+            await ctx.send("Only the minecraft server owner and moderators can do this")
+            return
+        if not self.get(ctx, servername):
+            await ctx.send('Server with this name does not exist.')
+            return
+        name = args.split(",")
+        if podscript.addplayers(whichlst,name,servername + "." + str(ctx.guild.id)) == 1:
+            await ctx.send(f"Successfully added {args} to the {whichlst}")
+        else:
+            await ctx.send("Something went wrong. Check your parameters for spelling errors")
+    @commands.command()
+    async def removeplayer(self,ctx: Context, servername: str, whichlst: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        if not self.perms(ctx, servername):
+            await ctx.send("Only the minecraft server owner and moderators can do this")
+            return
+        if not self.get(ctx, servername):
+            await ctx.send('Server with this name does not exist.')
+            return
+        name = args.split(",")
+        if podscript.removeplayers(whichlst,name,servername + "." + str(ctx.guild.id)) == 1:
+            await ctx.send(f"Successfully removed {args} from the {whichlst}")
+        else:
+            await ctx.send("Something went wrong. Check your parameters for spelling errors")
+    @commands.command()
+    async def addmoderator(self,ctx: Context, name: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        id: Guild.id = ctx.guild.id
+        if not self.perms(ctx, name): 
+            await ctx.send("Only the minecraft server owner and moderators can do this")
+            return
+        lst = args.split()
+        userlst = []
+        for user in lst:
+            user = user.replace("<","")
+            user = user.replace(">","")
+            user = user.replace("@","")
+            user = user.replace("!","")
+            userlst.append(str(user))
+            await ctx.send(f"Added <@{user}> to list of moderators")
+        for user in self.db.search((where('serverId') == id) & (where('name') == name))[0]['moderators']:
+            userlst.append(user)
+        
+        userlst = list(set(userlst))
+
+        self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
+    @commands.command()
+    async def removemoderator(self,ctx: Context, name: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        id: Guild.id = ctx.guild.id
+        if not self.perms(ctx, name):
+            await ctx.send("Only the minecraft server owner and moderators can do this")
+            return
+        moderatorlist = self.db.search((where('serverId') == id) & (where('name') == name))[0]['moderators']
+        lst = args.split()
+        userlst = []
+        for user in lst:
+            user = user.replace("<","")
+            user = user.replace(">","")
+            user = user.replace("@","")
+            user = user.replace("!","")
+            userlst.append(str(user))
+        for user in userlst:
+            try: 
+                userlst.remove(user)
+                await ctx.send(f"Removed <@{user}> to list of moderators")
+            except:
+                await ctx.send(f"<@{user}> is not on the list of moderators")
+        self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
+            
+    @commands.command()
+    async def test(self,ctx: Context, name: str, *, args):
+        id: Guild.id = ctx.guild.id
+        await ctx.send(self.db.search((where('serverId') == id) & (where('name') == name)))
+        return
+    @commands.command()
+    async def info(self, ctx: Context, name: str):
+        id = ctx.guild.id
+        servername = name + "." + str(ctx.guild.id)
+        owner = self.db.get((where('serverId') == id) & (where('name') == name))['owner']
+        moderatorlst = []
+        for moderators in self.db.get((where('serverId') == id) & (where('name') == name))['moderators']:
+            moderatorlst.append("<@" + str(moderators) + ">")
+        podmandict=podscript.podinfo(servername)
+        await ctx.send(f"""
+**The server owner is: <@{owner}> ** 
+**The moderators are: {','.join(moderatorlst)}**
+*the server was created at {podmandict['Created']}*
+        """)
+    @commands.command()
+    async def max(self, ctx: Context):
+        querycheck = Query()
+        maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
+        maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
+        await ctx.send(f"""The max is **{maxperuser} server(s)** per person
+The max overall is **{maxperuser} minecraft servers** in each discord server
+
+You have **{len(self.db.search(querycheck.owner == ctx.author.id))}** server(s)
+There are **{len(self.db.search(querycheck.status == 'up'))}** servers up currently""")
+    @commands.command()
+    async def on_command_error(ctx, error):
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("Must pass the required arguments")
+
+    def perms(self, ctx: Context, name: str):
+        id: Guild.id = ctx.guild.id
+        user = ctx.author.id
+        for botowner in botowners:
+            if botowner == str(user):
+                return True
+        if self.db.get((where('serverId') == id) & (where('name') == name))['owner'] == user:
+            return True     
+        for moderators in self.db.get((where('serverId') == id) & (where('name') == name))['moderators']:
+            if moderators == user:
+                return True
+        return False
+
+    def blacklisted(self, user: str):
+        bannedlst = os.getenv('BOT_BLACKLISTED').split()
+        for banned in bannedlst:
+            if user == banned:
+                return True
+            else:
+                return False
+    def get(self, ctx: Context, name: str = None):
+        id: Guild.id = ctx.guild.id
+        if name:
+            return self.db.get((where('serverId') == id) & (where('name') == name))
+        else:
+            return self.db.search((where('serverId') == id))
+    async def startup(self, ctx: Context, processname: str):
         with PodmanClient(base_url=uri) as client:
             message = await ctx.send ("Starting the Minecraft server...")
             process=client.containers.get(processname)
@@ -449,114 +582,3 @@ class MC(commands.Cog):
                 await message.edit(content = logs[-1].decode('utf-8'))
             await message.edit(content = "The server is up!")
             return
-    @commands.command()
-    async def ip(self,ctx: Context, name: str):
-        if self.blacklisted(str(ctx.author.id)):
-            await ctx.send('You were blacklisted by the bot owner')
-            return
-        if not self.get(ctx, name):
-            await ctx.send('Server with this name does not exist.')
-            return
-        await ctx.send(f'The ip for "{name}" is:\n\n`{cloudscript.findip(name, ctx.guild.id)}`')
-
-    @commands.command()
-    async def addplayer(self,ctx: Context, servername: str, whichlst: str, *, args):
-        if self.blacklisted(str(ctx.author.id)):
-            await ctx.send('You were blacklisted by the bot owner')
-            return
-        if not self.perms(ctx, servername, str(ctx.author.id)):
-            await ctx.send("You do not have permissions to do this")
-            return
-        if not self.get(ctx, servername):
-            await ctx.send('Server with this name does not exist.')
-            return
-        name = args.split(",")
-        if podscript.addplayers(whichlst,name,servername + "." + str(ctx.guild.id)) == 1:
-            await ctx.send(f"Successfully added {args} to the {whichlst}")
-        else:
-            await ctx.send("Something went wrong. CHeck your parameters for spelling errors")
-    @commands.command()
-    async def addmoderator(self,ctx: Context, name: str, *, args):
-        if self.blacklisted(str(ctx.author.id)):
-            await ctx.send('You were blacklisted by the bot owner')
-            return
-        id: Guild.id = ctx.guild.id
-        if not self.perms(ctx, name, str(ctx.author.id)): 
-            await ctx.send("You do not have permissions to do this")
-            return
-        lst = args.split()
-        userlst = []
-        for user in lst:
-            user = user.replace("<","")
-            user = user.replace(">","")
-            user = user.replace("@","")
-            user = user.replace("!","")
-            userlst.append(str(user))
-        for user in self.db.search((where('serverId') == id) & (where('name') == name))[0]['moderators']:
-            userlst.append(user)
-            await ctx.send(f"Added <@{user}> to list of moderators")
-        userlst = list(set(userlst))
-
-        self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
-    @commands.command()
-    async def removemoderator(self,ctx: Context, name: str, *, args):
-        if self.blacklisted(str(ctx.author.id)):
-            await ctx.send('You were blacklisted by the bot owner')
-            return
-        id: Guild.id = ctx.guild.id
-        if not self.perms(ctx, name, str(ctx.author.id)):
-            await ctx.send("You do not have permissions to do this")
-            return
-        moderatorlist = self.db.search((where('serverId') == id) & (where('name') == name))[0]['moderators']
-        lst = args.split()
-        userlst = []
-        for user in lst:
-            user = user.replace("<","")
-            user = user.replace(">","")
-            user = user.replace("@","")
-            user = user.replace("!","")
-            userlst.append(str(user))
-        for user in userlst:
-            try: 
-                userlst.remove(user)
-                await ctx.send(f"Removed <@{user}> to list of moderators")
-            except:
-                await ctx.send(f"<@{user}> is not on the list of moderators")
-        self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
-            
-    @commands.command()
-    async def test(self,ctx: Context, name: str, *, args):
-        id: Guild.id = ctx.guild.id
-        await ctx.send(self.db.search((where('serverId') == id) & (where('name') == name)))
-        return
-    def perms(self, ctx: Context, name: str, user : str):
-        id: Guild.id = ctx.guild.id
-        for owners in self.db.search((where('serverId') == id) & (where('name') == name))[0]['owners']:
-            if owners == user:
-                return True     
-        for moderators in self.db.search((where('serverId') == id) & (where('name') == name))[0]['moderators']:
-            if moderators == user:
-                return True
-
- 
-        return False
-
-    @commands.command()
-    async def on_command_error(ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send("Must pass the required arguments")
-
-
-    def blacklisted(self, user: str):
-        bannedlst = os.getenv('BOT_BLACKLISTED').split()
-        for banned in bannedlst:
-            if user == banned:
-                return True
-            else:
-                return False
-    def get(self, ctx: Context, name: str = None):
-        id: Guild.id = ctx.guild.id
-        if name:
-            return self.db.get((where('serverId') == id) & (where('name') == name))
-        else:
-            return self.db.search((where('serverId') == id))

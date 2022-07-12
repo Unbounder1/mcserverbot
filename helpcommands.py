@@ -109,14 +109,16 @@ class MyHelp(commands.Cog):
 
             pages = [page1(), page2(), page3(), page4(), page5()]
             await self.pageturner(ctx,currentpage,pages)
-    # @help.error
-    # async def indexerror(self, ctx: context, error):
-    #     if isinstance(error, commands.CommandError):
-    #         await ctx.send("That is not a valid page")
-    #         return
-    #     elif isinstance(error, commands.MissingRequiredArgument):
-    #         await ctx.send("Check your arguments")
-    #         return
+        elif command == "set":
+            pass
+    @help.error
+    async def indexerror(self, ctx: context, error):
+        if isinstance(error, commands.CommandError):
+            await ctx.send("That is not a valid page")
+            return
+        elif isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("Check your arguments")
+            return
     async def pageturner(self, ctx: context, currentpage: int, pages):
         currentpage -=1
         message = await ctx.send(embed=pages[currentpage])

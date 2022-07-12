@@ -16,8 +16,8 @@ cf = CloudFlare.CloudFlare(token=token)
 
 def create(inputname: str, guildid: int, port: int):
     query = Query()
-    db = TinyDB('domainnameDB.json')
-    prefix = db.search(query['guildId'] == guildid)[0]['domainprefix']
+    db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
+    prefix = db.get(query['guildId'] == guildid)['domainprefix']
     name = prefix + "-" + inputname
     zone = cf.zones.get(params={'name': domain})
     zone_id = zone[0]['id']
@@ -27,8 +27,8 @@ def create(inputname: str, guildid: int, port: int):
     return name + "." + domain
 def delete(inputname: str, guildid: int):
     query = Query()
-    db = TinyDB('domainnameDB.json')
-    prefix = db.search(query['guildId'] == guildid)[0]['domainprefix']
+    db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
+    prefix = db.get(query['guildId'] == guildid)['domainprefix']
     name = prefix + "-" + inputname
     zone = cf.zones.get(params={'name': domain})
     zone_id = zone[0]['id']
@@ -44,8 +44,8 @@ def delete(inputname: str, guildid: int):
     return
 def findip(inputname: str, guildid: int):
     query = Query()
-    db = TinyDB('domainnameDB.json')
-    prefix = db.search(query['guildId'] == guildid)[0]['domainprefix']
+    db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
+    prefix = db.get(query['guildId'] == guildid)['domainprefix']
     name = prefix + "-" + inputname + "." + domain
     return name
 async def virustest(url: str):

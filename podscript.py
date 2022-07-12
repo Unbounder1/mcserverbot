@@ -15,21 +15,20 @@ def findenv(name: str):
 
 def create(name: str, env: dict, port: int):
     portnumber = {'25565': str(port)}
-    with PodmanClient(base_url=uri) as client:
+    try:
+        client.containers.run('itzg/minecraft-server', environment=env, ports=portnumber, name=name, detach=True)
+        print("making container")
+    except:
         try:
-            client.containers.run('itzg/minecraft-server', environment=env, ports=portnumber, name=name, detach=True)
-            print("making container")
-        except:
-            try:
-                process=client.containers.get(name)
-                try: process.stop()
-                
-                finally:
-                    try: process.remove(v=True, force=True)
+            process=client.containers.get(name)
+            try: process.stop()
+            
+            finally:
+                try: process.remove(v=True, force=True)
 
-                    finally: return 0
-            finally: return 0
-        return 1
+                finally: return 0
+        finally: return 0
+    return 1
 
 def replace(name: str, env: dict, port: int):
     portnumber = {'25565': str(port)}
@@ -80,7 +79,6 @@ def start(name: str):
     except:
         return "The server is already on"
 def addplayers(whichlst: str, name: list, processname: str):
-
     if whichlst.lower() == 'whitelist':
         for user in name:
             command = "podman-remote exec " + processname + " rcon-cli " + "whitelist add" + user + " >/dev/null 2>&1"
@@ -90,6 +88,21 @@ def addplayers(whichlst: str, name: list, processname: str):
             command = "podman-remote exec " + processname + " rcon-cli " + "op " + user + " >/dev/null 2>&1"
             os.system(command)
         return 1
-
     else:
         return 0
+def removeplayers(whichlst: str, name: list, processname: str):
+    if whichlst.lower() == 'whitelist':
+        for user in name:
+            command = "podman-remote exec " + processname + " rcon-cli " + "whitelist remove" + user + " >/dev/null 2>&1"
+        return 1
+    elif whichlst.lower() == 'ops':
+        for user in name:
+            command = "podman-remote exec " + processname + " rcon-cli " + "deop " + user + " >/dev/null 2>&1"
+            os.system(command)
+        return 1
+    else:
+        return 0
+def podinfo(name: str):
+    oldenvlst=client.containers.get(name).inspect()
+    returndict = {'Env': oldenvlst['Config']['Env'], 'Created': oldenvlst['Created']}
+    return returndict
