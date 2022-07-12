@@ -12,15 +12,17 @@ CLIENT_TOKEN = os.getenv('CLIENT_TOKEN')
 
 
 intents = discord.Intents.default()
-bot = commands.Bot(command_prefix='$',help_command=None,intents=intents)
+bot = commands.Bot(command_prefix='$', help_command=None, intents=intents)
 
 @bot.event
 async def on_ready():
     print('Logged in as {0} ({0.id})'.format(bot.user))
     print('------')
-
+@bot.check
+async def globally_block_dms(ctx):
+    return ctx.guild is not None
 
 bot.add_cog(setup(bot))
-bot.add_cog(MC(bot))
+#bot.add_cog(MC(bot))
 bot.add_cog(MyHelp(bot))
 bot.run(CLIENT_TOKEN)

@@ -70,26 +70,24 @@ def stop(name: str):
     process=client.containers.get(name)
     try: 
         process.stop()
-        return "The container has been stopped"
-    except: return "The container has already been stopped."
+        return "The server has been stopped"
+    except: return "The server has already been stopped."
 def start(name: str):
     process=client.containers.get(name)
     try:
         process.start()
-        return "The container has been started"
+        return "The start command has executed"
     except:
-        return "The container is already on"
+        return "The server is already on"
 def addplayers(whichlst: str, name: list, processname: str):
 
     if whichlst.lower() == 'whitelist':
         for user in name:
             command = "podman-remote exec " + processname + " rcon-cli " + "whitelist add" + user + " >/dev/null 2>&1"
-            os.system(command)
         return 1
     elif whichlst.lower() == 'ops':
         for user in name:
             command = "podman-remote exec " + processname + " rcon-cli " + "op " + user + " >/dev/null 2>&1"
-            print (command)
             os.system(command)
         return 1
 

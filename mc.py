@@ -24,7 +24,7 @@ class MC(commands.Cog):
 
 
     @commands.command()
-    async def create(self, ctx: Context, name: str, mctype: str, *, args):
+    async def create(self, ctx: Context, name: str, mctype = "vanilla", *, args = 0):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -295,7 +295,6 @@ class MC(commands.Cog):
                                 del linklst[0]
                                 lst = list(dict.fromkeys(lst)) # removes duplicates
                                 linkpropenv['DATAPACKS'] = ",".join(lst)
-                                print (linkpropenv['DATAPACKS'])
                         else:
                             analysis = await cloudscript.virustest(link)
                             if analysis == '1':
@@ -404,7 +403,7 @@ class MC(commands.Cog):
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
-        message = await ctx.send("Attempting to stop the server...")
+        message = await ctx.send(f"Stopping the server '{name}'...")
         processname = name + "." + str(ctx.guild.id)
         await message.edit(content = podscript.stop(processname))
 
@@ -420,7 +419,7 @@ class MC(commands.Cog):
             await ctx.send('Server with this name does not exist.')
             return
         processname = name + "." + str(ctx.guild.id)
-        podscript.start(processname)
+        await ctx.send(podscript.start(processname))
         with PodmanClient(base_url=uri) as client:
             message = await ctx.send ("Starting the Minecraft server...")
             process=client.containers.get(processname)
@@ -461,18 +460,21 @@ class MC(commands.Cog):
         await ctx.send(f'The ip for "{name}" is:\n\n`{cloudscript.findip(name, ctx.guild.id)}`')
 
     @commands.command()
-    async def addplayer(self,ctx: Context, servername: str, whichlst: str, *, arg):
+    async def addplayer(self,ctx: Context, servername: str, whichlst: str, *, args):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
-        if not self.perms(ctx, name, str(ctx.author.id)):
+        if not self.perms(ctx, servername, str(ctx.author.id)):
             await ctx.send("You do not have permissions to do this")
             return
         if not self.get(ctx, servername):
             await ctx.send('Server with this name does not exist.')
             return
-        name = arg.split(",")
-        podscript.addplayers(whichlst,name,servername + "." + str(ctx.guild.id))
+        name = args.split(",")
+        if podscript.addplayers(whichlst,name,servername + "." + str(ctx.guild.id)) == 1:
+            await ctx.send(f"Successfully added {args} to the {whichlst}")
+        else:
+            await ctx.send("Something went wrong. CHeck your parameters for spelling errors")
     @commands.command()
     async def addmoderator(self,ctx: Context, name: str, *, args):
         if self.blacklisted(str(ctx.author.id)):
