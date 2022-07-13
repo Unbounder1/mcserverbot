@@ -373,6 +373,8 @@ class MC(commands.Cog):
                     'guildId': ctx.guild.id
                 })
                 await ctx.send("Successfully saved the world")
+                message = await ctx.send("Deleting the server...")
+                process.remove()
             elif keepworld.lower() == "false":
                 def check(message): 
                     return message.author == ctx.author and message.channel == ctx.channel
@@ -385,13 +387,14 @@ class MC(commands.Cog):
                     self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
                     await message.edit(content = "Deletion has been cancelled")
                     return
+                message = await ctx.send("Deleting the server...")
+                volume = client.volumes.get(process.inspect()['Mounts'][0]['Name'])
+                process.remove()
+                volume.remove()
             else:
                 await ctx.send("Check your parameters for spelling errors")
                 return
-            message = await ctx.send("Deleting the server...")
-            volume = client.volumes.get(process.inspect()['Mounts'][0]['Name'])
-            process.remove()
-            volume.remove()
+ 
             try: await cloudscript.delete(name, ctx.guild.id)
             except Exception as e: await ctx.send(e)
             self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
@@ -591,7 +594,7 @@ class MC(commands.Cog):
             if temp[0].lower() == "version":
                 newenv['VERSION'] = temp[1]
             elif temp[0].lower() == "name":
-                if self.get(ctx, name):
+                if self.get(ctx, temp[1]):
                     await ctx.send('Server with name already exists.')
                     return
                 name = temp[1]
@@ -652,6 +655,7 @@ class MC(commands.Cog):
             portnumber = {'25565': str(port)}
             client.containers.run('itzg/minecraft-server', environment=env, ports=portnumber, name=processname, mounts=mountpoint, detach=True) 
             finalip = await cloudscript.create(name, ctx.guild.id, port)
+            self.backups.remove((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id) & (where('worldname') == worldname))
             await self.startup(ctx,processname, finalip)
 
 
