@@ -4,8 +4,7 @@ from discord.ext.commands import Context
 from tinydb import TinyDB, Query, where
 from podman import PodmanClient
 from time import sleep
-import nest_asyncio
-nest_asyncio.apply()
+import asyncio
 import podscript
 import cloudscript
 from dotenv import load_dotenv
@@ -20,6 +19,7 @@ class MC(commands.Cog):
         self.bot = bot
         self.db = TinyDB('serverDB.json').table(name='_default', cache_size = 0)
         self.conf = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
+        self.backups = TinyDB('serverDB.json').table(name='_volumes', cache_size = 0)
     @commands.command()
     async def create(self, ctx: Context, name: str, mctype = "vanilla", *, args = '0'):
         if self.blacklisted(str(ctx.author.id)):
@@ -31,11 +31,11 @@ class MC(commands.Cog):
         querycheck = Query()
         maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
         maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
-        if len(self.db.search(querycheck.owner == ctx.author.id))>=maxperuser:
+        if len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))>=maxperuser:
             if str(ctx.author.id) not in botowners:
                 await ctx.send(f"You can only have {maxperuser} server per person")
                 return
-        if len(self.db.search(querycheck.status == 'up'))>=maxservers:
+        if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
             if str(ctx.author.id) not in botowners:
                 await ctx.send(f"This server can only have {maxservers} servers up at once")
                 return
@@ -57,7 +57,7 @@ class MC(commands.Cog):
                         await ctx.send("Memory can only be set between 2 and 8 gigabytes. Ask the bot owner if you need more")
                         return
                 elif temp[0] == 'VERSION':
-                     mainenv[temp[0]]=temp[1]
+                    mainenv[temp[0]]=temp[1]
         
         defaultenv = {
                     'GUI': "false", 
@@ -116,7 +116,6 @@ class MC(commands.Cog):
                         return               
                 env = {**defaultenv, **mainenv, **linkpropenv, **otherpropenv, 'SEED': seed, 'TYPE': mctype.upper()}
 
-
         #__checking universal arguments__
         
         # if len(args)>0 and args!="0":
@@ -149,7 +148,7 @@ class MC(commands.Cog):
         'type': mctype,
         'owner': owner,
         'moderators': moderators,
-        'status': 'up'
+        'status': 'down'
         })
 
 
@@ -157,15 +156,16 @@ class MC(commands.Cog):
         processname = name + "." + str(ctx.guild.id)
 
         #__starting the podman container__
-        if podscript.create(processname, env, port)==0:
+        creation = await podscript.create(processname, env, port, mainenv['VERSION'])
+        if creation==0:
             await ctx.send("Something went wrong. Check your spelling and try again")
             self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
             return
         
-        finalip = cloudscript.create(name, ctx.guild.id, port)
+        finalip = await cloudscript.create(name, ctx.guild.id, port)
 
         #__sending server status messages__
-        await self.startup(ctx,processname)
+        await self.startup(ctx,processname, finalip)
         self.db.update({'status': 'up'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
         return
     @commands.command()
@@ -179,8 +179,7 @@ class MC(commands.Cog):
         if not self.perms(ctx, name):
             await ctx.send("Only the minecraft server owner and moderators can do this")
             return
-        message = await ctx.send("Attempting to set variables")
-        #ADD CHECK FOR IF THE THING EXISTS OR NOT <-----------------------
+        await ctx.send("Attempting to set variables")
         processname = name + "." + str(ctx.guild.id)
         defaultenv = {
             'GUI': "false", 
@@ -218,7 +217,7 @@ class MC(commands.Cog):
         env = {'intpropenv':intpropenv,'strpropenv':strpropenv,'boolpropenv':boolpropenv,'linkpropenv':linkpropenv,'otherpropenv':otherpropenv, 'maxmemory': maxmemory}
 
 
-        oldenvlst = podscript.findenv(processname)
+        oldenvlst = await podscript.findenv(processname)
         oldenvdict = {}
         #__converting the list output of 'podman inspect' to a dictionary format__
         for variables in oldenvlst:             
@@ -230,11 +229,13 @@ class MC(commands.Cog):
                 for variables in env[types]:
                     if oldvariables in env[types]:
                         env[types][oldvariables] = oldenvdict[oldvariables]
-
+        
+                        
         if len(args)>0: 
             arglist = args.split(",")
             for a in arglist:
                 try:
+                    restore = None
                     temp = a.split("=")
                     if temp[0] in intpropenv:           
                         try:
@@ -322,42 +323,108 @@ class MC(commands.Cog):
             env = {**intpropenv, **strpropenv,**boolpropenv, **linkpropenv, **otherpropenv, **maxmemory, **defaultenv}
             portdict = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
             port = portdict[0]['port']
-            await ctx.send(podscript.replace(processname, env, port))
+            replace = await podscript.replace(processname, env, port, restore)
+            await ctx.send(replace)
             self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
-    async def delete(self, ctx: Context, name: str):
+    async def delete(self, ctx: Context, name: str, keepworld = "False", worldname = None, * ,args = "A minecraft server"):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return  
-        if not self.perms(ctx, name):
-            await ctx.send("Only the minecraft server owner and moderators can do this")
+        owner = self.db.get((where('serverId') == ctx.guild.id) & (where('name') == name))['owner']
+        if owner != ctx.author.id:
+            await ctx.send("Only the minecraft server owner can do this")
             return
-        ids = self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
+        message = await ctx.send(f"Attempting to delete {name}")
+        ids = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
         if len(ids) == 0:
             await ctx.send('Server does not exist.')
             return
-        await ctx.send(f'Server with name "{name}" deleted.')
-        try: cloudscript.delete(name, ctx.guild.id)
-        except: pass
         with PodmanClient(base_url=uri) as client:
             try:
                 process=client.containers.get(name + "." + str(ctx.guild.id))
                 process.stop()
-                process.remove(v=True)
             except:
                 pass
-
+            if keepworld.lower() == "true":
+                if len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id) & (where('worldname') == worldname))):
+                    await ctx.send("There is already a server with this name")
+                    return
+                if not worldname:
+                    worldname = "unnamed world"
+                envlst = process.inspect()['Config']['Env']
+                envdict = {}
+                for variables in envlst:             
+                    templst = variables.split("=")
+                    envdict[templst[0]] = templst[1]
+                try: version = envdict['VERSION']
+                except: version = "Latest"
+                self.backups.insert({
+                    'volume':
+                    {
+                        'name':process.inspect()['Mounts'][0]['Name'], 
+                        'Source':process.inspect()['Mounts'][0]['Source']
+                    }, 
+                    'worldname': worldname, 
+                    'type': ids[0]['type'],
+                    'version': version,
+                    'description': args,
+                    'owner': owner, 
+                    'guildId': ctx.guild.id
+                })
+                await ctx.send("Successfully saved the world")
+                message = await ctx.send("Deleting the server...")
+                process.remove()
+            elif keepworld.lower() == "false":
+                def check(message): 
+                    return message.author == ctx.author and message.channel == ctx.channel
+                try: 
+                    await ctx.send("Are you sure you want to delete the world (There is no going back):\nTo confirm type (y)es. If no, type anything else")
+                    response = await self.bot.wait_for('message', check=check, timeout=30.0)
+                except asyncio.TimeoutError: return
+                if response.content.lower() not in ("yes", "y"):
+                    message = await ctx.send("Cancelling deletion...")
+                    self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
+                    await message.edit(content = "Deletion has been cancelled")
+                    return
+                message = await ctx.send("Deleting the server...")
+                volume = client.volumes.get(process.inspect()['Mounts'][0]['Name'])
+                process.remove()
+                volume.remove()
+            else:
+                await ctx.send("Check your parameters for spelling errors")
+                return
+ 
+            try: await cloudscript.delete(name, ctx.guild.id)
+            except Exception as e: await ctx.send(e)
+            self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
+            await message.edit(content = f'Server with name "{name}" deleted.')
 
     @commands.command()
-    async def list(self, ctx: Context):
+    async def list(self, ctx: Context, type = all):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
-        servers = [entry['name'] for entry in self.get(ctx)]
-        if len(servers) == 0:
-            await ctx.send('No servers')
-            return
-        await ctx.send('\n'.join(servers))
+        if type == "all":
+            servers = [entry['name'] for entry in self.get(ctx)]
+            if len(servers) == 0:
+                await ctx.send('No servers')
+                return
+            status = [entry['status'] for entry in self.get(ctx)]
+            for i in range(0,len(servers)-1):
+                servers[i] = servers[i] + ": Status `" + status[i] + "`"
+            await ctx.send('\n'.join(servers))
+        elif type == "running" or "up" or "on":
+            servers = [entry['name'] for entry in self.get(ctx)] 
+            status = [entry['status'] for entry in self.get(ctx)]
+            for i in range(0,len(servers)):
+                servers[i] = servers[i] + ": Status `" + status[i] + "`"
+            if len(servers) == 0:
+                await ctx.send('No servers')
+                return
+            else:
+                await ctx.send('\n'.join(servers))
+
     @commands.command()
     async def status(self,ctx: Context, name: str):
         if self.blacklisted(str(ctx.author.id)):
@@ -367,7 +434,7 @@ class MC(commands.Cog):
             await ctx.send('Server with this name does not exist.')
             return
         processname = name + "." + str(ctx.guild.id)
-        message = podscript.status(processname)
+        message = await podscript.status(processname)
         await ctx.send(f'The server is currently: `{message}`')
         return
     @commands.command()
@@ -383,7 +450,8 @@ class MC(commands.Cog):
             return
         message = await ctx.send(f"Stopping the server '{name}'...")
         processname = name + "." + str(ctx.guild.id)
-        await message.edit(content = podscript.stop(processname))
+        stopping = await podscript.stop(processname)
+        await message.edit(content = stopping)
         self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def start(self,ctx: Context, name: str):
@@ -397,8 +465,10 @@ class MC(commands.Cog):
             await ctx.send('Server with this name does not exist.')
             return
         processname = name + "." + str(ctx.guild.id)
-        await ctx.send(podscript.start(processname))
-        await self.startup(ctx, processname)
+        starting = await podscript.start(processname)
+        await ctx.send(starting)
+        finalip = await cloudscript.findip(name, ctx.guild.id)
+        await self.startup(ctx, processname, finalip)
         self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def ip(self,ctx: Context, name: str):
@@ -408,7 +478,7 @@ class MC(commands.Cog):
         if not self.get(ctx, name):
             await ctx.send('Server with this name does not exist.')
             return
-        await ctx.send(f'The ip for "{name}" is:\n\n`{cloudscript.findip(name, ctx.guild.id)}`')
+        await ctx.send(f'The ip for "{name}" is:\n\n`{await cloudscript.findip(name, ctx.guild.id)}`')
 
     @commands.command()
     async def addplayer(self,ctx: Context, servername: str, whichlst: str, *, args):
@@ -422,7 +492,8 @@ class MC(commands.Cog):
             await ctx.send('Server with this name does not exist.')
             return
         name = args.split(",")
-        if podscript.addplayers(whichlst,name,servername + "." + str(ctx.guild.id)) == 1:
+        addplayers = await podscript.addplayers(whichlst,name,servername + "." + str(ctx.guild.id))
+        if addplayers == 1:
             await ctx.send(f"Successfully added {args} to the {whichlst}")
         else:
             await ctx.send("Something went wrong. Check your parameters for spelling errors")
@@ -438,7 +509,8 @@ class MC(commands.Cog):
             await ctx.send('Server with this name does not exist.')
             return
         name = args.split(",")
-        if podscript.removeplayers(whichlst,name,servername + "." + str(ctx.guild.id)) == 1:
+        removeplayers = await podscript.removeplayers(whichlst,name,servername + "." + str(ctx.guild.id))
+        if removeplayers == 1:
             await ctx.send(f"Successfully removed {args} from the {whichlst}")
         else:
             await ctx.send("Something went wrong. Check your parameters for spelling errors")
@@ -491,7 +563,102 @@ class MC(commands.Cog):
             except:
                 await ctx.send(f"<@{user}> is not on the list of moderators")
         self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
+    @commands.command()
+    async def restore(self, ctx: Context, worldname: str, *, args):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        querycheck = Query()
+        maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
+        maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
+        if len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))>=maxperuser:
+            if str(ctx.author.id) not in botowners:
+                await ctx.send(f"You can only have {maxperuser} server per person")
+                return
+        if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
+            if str(ctx.author.id) not in botowners:
+                await ctx.send(f"This server can only have {maxservers} servers up at once")
+                return
+        oldworldinfo = self.backups.get((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id) & (where('worldname') == worldname))
+        if oldworldinfo:
+            mounts = oldworldinfo['volume']['Source'] 
+        else:
+            await ctx.send(f"Cannot find old world named {worldname}")
+            return
+        arglist = str(args).split(",")
+        newenv = {}
+        name = None
+        mountpoint = [{'type': 'bind', 'source': mounts, 'target': '/data'}]
+        for a in arglist:
+            temp = a.split("=")
+            if temp[0].lower() == "version":
+                newenv['VERSION'] = temp[1]
+            elif temp[0].lower() == "name":
+                if self.get(ctx, temp[1]):
+                    await ctx.send('Server with name already exists.')
+                    return
+                name = temp[1]
+            else:
+                await ctx.send("Make sure you have the right required arguments")
+                return
+        defaultenv = {
+            'GUI': "false", 
+            'EULA': "true", 
+            'INIT_MEMORY': "1G",
+
+            'OVERRIDE_SERVER_PROPERTIES' : "true", 
+            'REPLACE_ENV_IN_PLACE': "false",
+            'OVERRIDE_OPS': "false",
+            'OVERRIDE_WHITELIST': "false",
+            'REMOVE_OLD_DATAPACKS': 'true',
             
+            #RCON
+            'ENABLE_RCON': "true",
+            'RCON_PASSWORD': "minecraft", #Advised to change this
+            #autopause stuff
+
+            'MAX_TICK_TIME' : "-1",
+            'ENABLE_AUTOPAUSE': "true",
+            'AUTOPAUSE_TIMEOUT_EST': "3600",
+            'AUTOPAUSE_KNOCK_INTERFACE' : "eno1",
+
+            #autostop stuff
+            'ENABLE_AUTOSTOP': "false",
+            'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
+    }
+        env = {**defaultenv, **newenv}
+        port = None
+        for p in range (int(os.getenv('PORT_MIN')),int(os.getenv('PORT_MAX'))):
+            portchecker = Query()
+            if self.db.contains(portchecker.port == p):
+                continue
+            else:
+                port = p
+                break
+        processname = str(name) + "." + str(ctx.guild.id)
+        owner = ctx.author.id
+        moderators = []
+        mctype = oldworldinfo['type']
+        self.db.insert({
+        'serverId': ctx.guild.id,
+        'name': name,
+        'port': port,
+        'type': mctype,
+        'owner': owner,
+        'moderators': moderators,
+        'status': 'down'
+        })
+
+        
+        await ctx.send(f'Server with name "{name}" on "{mctype}" added.')
+        with PodmanClient(base_url=uri) as client:
+            portnumber = {'25565': str(port)}
+            client.containers.run('itzg/minecraft-server', environment=env, ports=portnumber, name=processname, mounts=mountpoint, detach=True) 
+            finalip = await cloudscript.create(name, ctx.guild.id, port)
+            self.backups.remove((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id) & (where('worldname') == worldname))
+            await self.startup(ctx,processname, finalip)
+
+
     @commands.command()
     async def test(self,ctx: Context, name: str, *, args):
         id: Guild.id = ctx.guild.id
@@ -505,11 +672,21 @@ class MC(commands.Cog):
         moderatorlst = []
         for moderators in self.db.get((where('serverId') == id) & (where('name') == name))['moderators']:
             moderatorlst.append("<@" + str(moderators) + ">")
-        podmandict=podscript.podinfo(servername)
+        podmandict=await podscript.podinfo(servername)
+        env = {}
+        for variables in podmandict['Env']:             
+            templst = variables.split("=")
+            env[templst[0]] = templst[1]
+        try: version = env['VERSION']
+        except: version = "Latest"
+        try: type = env['TYPE']
+        except: type = "Vanilla"
         await ctx.send(f"""
-**The server owner is: <@{owner}> ** 
-**The moderators are: {','.join(moderatorlst)}**
-*the server was created at {podmandict['Created']}*
+The server "{name}" is a {type} server on version: {version}
+
+Owner: <@{owner}> 
+Moderators: {','.join(moderatorlst)}
+*the server was created at {podmandict['Created'][:10]}*
         """)
     @commands.command()
     async def max(self, ctx: Context):
@@ -519,8 +696,8 @@ class MC(commands.Cog):
         await ctx.send(f"""The max is **{maxperuser} server(s)** per person
 The max overall is **{maxperuser} minecraft servers** in each discord server
 
-You have **{len(self.db.search(querycheck.owner == ctx.author.id))}** server(s)
-There are **{len(self.db.search(querycheck.status == 'up'))}** servers up currently""")
+You have **{len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))}** server(s)
+There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))}** servers up currently""")
     @commands.command()
     async def on_command_error(ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
@@ -552,7 +729,7 @@ There are **{len(self.db.search(querycheck.status == 'up'))}** servers up curren
             return self.db.get((where('serverId') == id) & (where('name') == name))
         else:
             return self.db.search((where('serverId') == id))
-    async def startup(self, ctx: Context, processname: str):
+    async def startup(self, ctx: Context, processname: str, finalip: str):
         with PodmanClient(base_url=uri) as client:
             message = await ctx.send ("Starting the Minecraft server...")
             process=client.containers.get(processname)
@@ -580,5 +757,5 @@ There are **{len(self.db.search(querycheck.status == 'up'))}** servers up curren
                         break
                 logs = list(process.logs(since=1))
                 await message.edit(content = logs[-1].decode('utf-8'))
-            await message.edit(content = "The server is up!")
+            await message.edit(content = f"The server is up on {finalip}")
             return

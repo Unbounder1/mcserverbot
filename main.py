@@ -6,6 +6,7 @@ from discord.ext import commands
 from mc import MC
 from setupcommands import setup
 from helpcommands import MyHelp
+from volumemanagement import ManageVolumes
 load_dotenv()
 
 CLIENT_TOKEN = os.getenv('CLIENT_TOKEN')
@@ -25,4 +26,5 @@ async def globally_block_dms(ctx):
 bot.add_cog(setup(bot))
 bot.add_cog(MC(bot))
 bot.add_cog(MyHelp(bot))
+bot.add_cog(ManageVolumes(bot))
 bot.run(CLIENT_TOKEN)

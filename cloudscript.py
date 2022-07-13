@@ -14,7 +14,7 @@ CLIENT_TOKEN = os.getenv('VIRUSTOTAL_TOKEN')
 
 cf = CloudFlare.CloudFlare(token=token)
 
-def create(inputname: str, guildid: int, port: int):
+async def create(inputname: str, guildid: int, port: int):
     query = Query()
     db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
     prefix = db.get(query['guildId'] == guildid)['domainprefix']
@@ -25,7 +25,7 @@ def create(inputname: str, guildid: int, port: int):
     cf.zones.dns_records.post(zone_id, data={'type': 'A', 'name':name, 'content':ip, 'proxied': True})
     cf.zones.dns_records.post(zone_id, data={'type': 'SRV', 'data': {'service': '_minecraft', 'proto': '_tcp', 'name':name, 'priority': 1, 'weight': 1, 'port': port, 'target':name + '.voark.com'}})
     return name + "." + domain
-def delete(inputname: str, guildid: int):
+async def delete(inputname: str, guildid: int):
     query = Query()
     db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
     prefix = db.get(query['guildId'] == guildid)['domainprefix']
@@ -42,7 +42,7 @@ def delete(inputname: str, guildid: int):
 
     cf.zones.dns_records.delete(zone_id, dns_id)
     return
-def findip(inputname: str, guildid: int):
+async def findip(inputname: str, guildid: int):
     query = Query()
     db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
     prefix = db.get(query['guildId'] == guildid)['domainprefix']

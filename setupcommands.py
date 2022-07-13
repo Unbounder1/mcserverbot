@@ -15,6 +15,9 @@ class setup(commands.Cog):
     @has_permissions(administrator=True)
     async def setup(self, ctx: Context, name: str):
         query = Query()
+        if len(self.db.search(query.domainprefix == name)) > 0:
+            await ctx.send("Another server already has this name. Please choose another")
+            return
         if not name.isalnum():
                 namesub = name.replace("-", "")
                 if not namesub.isalnum():
