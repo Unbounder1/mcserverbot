@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from discord.ext.commands import context
+from discord.ext.commands import Context
 import asyncio
 class MyHelp(commands.Cog):
     def __init__ (self, bot):
@@ -13,7 +13,7 @@ class MyHelp(commands.Cog):
     #     await self.context.send(embed=embed)
     #     await self.context.send("This is the help page for a command")
     @commands.command()
-    async def help(self, ctx: context, command = "all", currentpage = 1):
+    async def help(self, ctx: Context, command = "all", currentpage = 1):
         if command == "all":
             def page1():
                 embed=discord.Embed(color=0x00ffff)
@@ -112,14 +112,14 @@ class MyHelp(commands.Cog):
         elif command == "set":
             pass
     @help.error
-    async def indexerror(self, ctx: context, error):
+    async def indexerror(self, ctx: Context, error):
         if isinstance(error, commands.CommandError):
             await ctx.send("That is not a valid page")
             return
         elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Check your arguments")
             return
-    async def pageturner(self, ctx: context, currentpage: int, pages):
+    async def pageturner(self, ctx: Context, currentpage: int, pages):
         currentpage -=1
         message = await ctx.send(embed=pages[currentpage])
         await message.add_reaction("◀️")
