@@ -4,6 +4,8 @@ from discord.ext.commands import Context
 from tinydb import TinyDB, Query, where
 from podman import PodmanClient
 from time import sleep
+import sys
+import traceback
 import asyncio
 import podscript
 import cloudscript
@@ -719,10 +721,19 @@ The server's max is **{maxservers} running minecraft servers** in each discord s
 You have **{len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))}** server(s)
 There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))}** servers up currently""")
 
-    @commands.command()
-    async def on_command_error(ctx, error):
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        if hasattr(ctx.command, 'on_error'):
+            return
+
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send("Must pass the required arguments")
+            await ctx.send("You are missing some required arguments")
+
+        if isinstance(error, commands.CommandNotFound):
+            await ctx.send("This is not a command. Check your spelling")
+        else:
+            print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
     def perms(self, ctx: Context, name: str):
         id: Guild.id = ctx.guild.id
