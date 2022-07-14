@@ -538,7 +538,8 @@ class MC(commands.Cog):
         starting = await podscript.start(processname)
         await ctx.send(starting)
         finalip = await cloudscript.findip(name, ctx.guild.id)
-        await self.startup(ctx, processname, finalip)
+        try: await asyncio.wait_for(self.startup(ctx, processname, finalip), timeout= 120)
+        except asyncio.TimeoutError: pass
         self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def ip(self,ctx: Context, name: str):
@@ -822,14 +823,14 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
             is_starting=is_loading=is_finishing=True
             while is_starting:
                 await asyncio.sleep(1)
-                for i in process.logs(since=2):
+                for i in process.logs():
                     if i.decode('utf-8').find("[init]") != -1:
                         await message.edit (content = "Started the Minecraft Server")
                         is_starting= False
                         break         
             while is_loading:
                 await asyncio.sleep(1)
-                for i in process.logs(since=2):
+                for i in process.logs():
                     if i.decode('utf-8').find("[ServerMain/INFO]") != -1:
                         await ctx.send("Preparing world...")
                         is_loading= False
@@ -837,7 +838,7 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
             message = await ctx.send("Setting up the server")
             while is_finishing:
                 await asyncio.sleep(1)
-                for i in process.logs(since=5):
+                for i in process.logs():
                     if i.decode('utf-8').find('For help') != -1:
                         is_finishing= False
                         break

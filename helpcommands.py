@@ -5,13 +5,6 @@ import asyncio
 class MyHelp(commands.Cog):
     def __init__ (self, bot):
         self.bot = bot
-    # async def send_bot_help(self, mapping):
-    #     filtered = await self.filter_commands(self.context.bot.commands, sort=True)
-    #     names = [command.name for command in filtered]
-    #     available_commands = "\n".join(names)
-    #     embed  = discord.Embed(description=available_commands)
-    #     await self.context.send(embed=embed)
-    #     await self.context.send("This is the help page for a command")
     @commands.command()
     async def help(self, ctx: Context, command = "all", currentpage = 1):
         if command == "all":
@@ -28,6 +21,7 @@ class MyHelp(commands.Cog):
                 `$addplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Adds listed users to the whitelist/ops list \n
                 `$removeplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Removes listed users to the whitelist/ops list **NOT IMPLEMENTED YET** \n
                 `$delete` : deleting a server. See more info and options at $help delete 
+                `$transfer` `servername` `@user` : Transfer ownership of a server to another user
                 """, inline = True)
                 return embed
             def page2():
