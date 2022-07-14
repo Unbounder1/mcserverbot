@@ -46,7 +46,7 @@ class MC(commands.Cog):
             if str(ctx.author.id) not in botowners:
                 await ctx.send(f"This server can only have {maxservers} servers up at once")
                 return
-        mainenv = {'VERSION': None,'MAX_MEMORY': None}
+        mainenv = {'VERSION': None,'MAX_MEMORY': None,'MOTD': "A minecraft server created by the Voark bot"}
         #__setting up the universal env variables__
         if len(args)>0 and args!="0":
             argslist = args.split(",")
@@ -54,7 +54,7 @@ class MC(commands.Cog):
                 temp = a.split("=")
                 if temp[0] == "MAX_MEMORY":
                     try:
-                        if 2<int(temp[1])<8:
+                        if 2<=int(temp[1])<=8: #MIN/MAX MEMORY USAGE
                             mainenv[temp[0]]=str(temp[1]) + "G"
                         elif ctx.author.id in botowners:
                             mainenv[temp[0]]=str(temp[1]) + "G"
@@ -65,7 +65,8 @@ class MC(commands.Cog):
                         return
                 elif temp[0] == 'VERSION':
                     mainenv[temp[0]]=temp[1]
-        
+                elif temp[0] == 'MOTD':
+                    mainenv[temp[0]]=temp[1].replace('"','')
         defaultenv = {
                     'GUI': "false", 
                     'EULA': "true", 

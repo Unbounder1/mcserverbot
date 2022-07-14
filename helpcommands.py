@@ -19,14 +19,16 @@ class MyHelp(commands.Cog):
                 embed=discord.Embed(color=0x00ffff)
                 embed.set_author(name="Main Help Page")
                 embed.add_field(name="List of active commands", value="""
-                `$create` Creating a server. See more info at $help create \n
-                `$set` Setting OPTIONS of a server, like the ones in server.properties. See more info at $help set \n
+                `$create` : Creating a server. See more info at $help create \n
+                `$set` : Setting OPTIONS of a server, like the ones in server.properties. See more info at $help set \n
                 `$addmoderator` `servername` `@user` : Adds user to the minecraft server moderator list \n
                 `$removemoderator` `servername` `@user` : Removes a user to the minecraft server moderator list \n
                 `$start` `servername` : Starts the specified server \n
                 `$stop` `servername` : Stops the specified server (Need to be a moderator of the minecraft server) \n
                 `$addplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Adds listed users to the whitelist/ops list \n
-                `$removeplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Removes listed users to the whitelist/ops list **NOT IMPLEMENTED YET** \n""", inline = True)
+                `$removeplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Removes listed users to the whitelist/ops list **NOT IMPLEMENTED YET** \n
+                `$delete` : deleting a server. See more info and options at $help delete 
+                """, inline = True)
                 return embed
             def page2():
                 embed=discord.Embed(color=0x00ffff)
@@ -35,6 +37,17 @@ class MyHelp(commands.Cog):
                 `$listmoderator` `servername` : Lists all moderators **NOT IMPLEMENTED YET** \n
                 `$status` `servername` : Lists the status of the specified server \n
                 `$ip` `servername` : Gets the IP of the specified server \n""", inline=True)
+                return embed
+            def page3():
+                embed=discord.Embed(color=0x3cf00f)
+                embed.add_field(name="List of world management commands", value="""
+                `$oldworlds` `list` : Lists all the world backups you have
+                `$oldworlds` `info` `worldname` : Get more info on specific world backup
+                `$oldworlds` `delete` `worldname` : Permanently delete the world
+                `$oldworlds` `transfer `worldname` `@usertotransferto` : Transfer world to another user
+                `$restore` `worldname` name=`newservername`,version=`version|(empty = latest version)`
+
+                """, inline=True)
                 return embed
             pages = [page1(), page2()]
             await self.pageturner(ctx,currentpage,pages)
@@ -68,7 +81,12 @@ class MyHelp(commands.Cog):
                 embed=discord.Embed(color=0x3cf00f)
                 embed.set_author(name="Page 3/5")
                 embed.add_field(name="Global Options (All types have these)", value="`VERSION`: *Minecraft version, default is latest. Example:* **1.19.1**", inline=False)
-                embed.add_field(name="⠀", value="`MAX_MEMORY`: *Amount of RAM the server will have, valid range is between 2 and 8. 4 is enough for almost anything normal. If you need more, please contact a bot owner. Example:* **4**", inline=False)
+                embed.add_field(name="⠀", value="""`MAX_MEMORY`: *Amount of RAM the server will have, valid range is between 2 and 8. 4 is enough for almost anything normal. If you need more, please contact a bot owner. Example:* **4**
+                \nMOTD: The server message. Use (§) as formatting codes, and input the motd in between quotes: Example: "This is the §c§lMOTD"
+                
+                
+                
+                """, inline=False)
                 return embed
             def page4():
                 embed=discord.Embed(color=0x3cf00f)
@@ -111,6 +129,41 @@ class MyHelp(commands.Cog):
             await self.pageturner(ctx,currentpage,pages)
         elif command == "set":
             pass
+        elif command == "delete":
+            def page1():
+                embed=discord.Embed(color=0x00ffff)
+                embed.set_author(name="How to use the DELETE command")
+                embed.add_field(name="Saving the world for later use, backup, etc:", value="""Page 1/2 \n
+                $delete name true backupworldname "world description so that you can remember what the world was later"\n
+                ie. `$delete myserver true duosurvivalsmp "An SMP that I duoed with someone. Ended due to inactivity, but has some pretty cool builds"`\n
+                *must be the owner of the minecraft server to be able to delete it*
+            """, inline=True)
+                return embed
+            def page2():
+                embed=discord.Embed(color=0x00ffff)
+                embed.set_author(name="Main Help Page")
+                embed.add_field(name="Permanently deleting the world:", value="""Page 2/2 \n
+                $delete name , and then type y or yes to confirm when prompted\n
+                ie. `$delete myserver`\n
+                *must be the owner of the minecraft server to be able to delete it*
+            """, inline=True)      
+                return embed
+            pages = [page1(),page2()]
+            await self.pageturner(ctx,currentpage,pages)
+        elif command == "oldworlds":
+            def page1():
+                embed=discord.Embed(color=0x3cf00f)
+                embed.add_field(name="List of world management commands", value="""Page 1/1 \n
+                `$oldworlds` `list` : Lists all the world backups you have
+                `$oldworlds` `info` `worldname` : Get more info on specific world backup
+                `$oldworlds` `delete` `worldname` : Permanently delete the world
+                `$oldworlds` `transfer` `worldname` `@user` : Transfer world to another user
+                `$restore` `worldname` name=`newservername`,version=`version|(empty = latest version)`
+
+                """, inline=True)
+                return embed
+            pages = [page1()]
+            await self.pageturner(ctx,currentpage,pages)
     @help.error
     async def indexerror(self, ctx: Context, error):
         if isinstance(error, commands.CommandError):
