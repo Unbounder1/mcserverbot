@@ -111,7 +111,7 @@ class MC(commands.Cog):
                     temp = a.split("=")
                     #__malware/validity checker for links
                     if temp[0] in linkpropenv:
-                        analysis  = await cloudscript.virustest(temp[1])
+                        analysis = await cloudscript.virustest(temp[1])
                         if analysis == '1':
                             linkpropenv[temp[0]]=temp[1]
                             await ctx.send("Check 1: Links are valid")
@@ -406,16 +406,19 @@ class MC(commands.Cog):
                     await message.edit(content = "Deletion has been cancelled")
                     return
                 message = await ctx.send("Deleting the server...")
-                volumepath = process.inspect()['Mounts'][0]['Source']
-                volume = client.volumes.get(volumepath.split("/")[volumepath.split("/").index('volumes') + 1])
-                process.remove()
-                volume.remove()
+                try:
+                    volumepath = process.inspect()['Mounts'][0]['Source']
+                    volume = client.volumes.get(volumepath.split("/")[volumepath.split("/").index('volumes') + 1])
+                    process.remove()
+                    volume.remove()
+                except Exception as e:
+                    print (e)
             else:
                 await ctx.send("Check your parameters for spelling errors")
                 return
  
             try: await cloudscript.delete(name, ctx.guild.id)
-            except Exception as e: await ctx.send(e)
+            except Exception as e: print (e)
             self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
             await message.edit(content = f'Server with name "{name}" deleted.')
     @commands.command()
@@ -831,7 +834,7 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
             while is_loading:
                 await asyncio.sleep(1)
                 for i in process.logs():
-                    if i.decode('utf-8').find("[ServerMain/INFO]") != -1:
+                    if i.decode('utf-8').find(" INFO]") != -1:
                         await ctx.send("Preparing world...")
                         is_loading= False
                         break

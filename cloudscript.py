@@ -1,4 +1,3 @@
-import nest_asyncio
 import asyncio
 import CloudFlare
 import os
@@ -50,7 +49,7 @@ async def findip(inputname: str, guildid: int):
     return name
 async def virustest(url: str):
     with vt.Client(CLIENT_TOKEN) as client:
-        analysis = await client.scan_url_async(url, wait_for_completion=True)
+        analysis = asyncio.run(client.scan_url_async(url, wait_for_completion=True))
         if analysis.stats['malicious'] > 0:
             return "Please contact bot owner to install"
         elif analysis.stats['suspicious'] > 5:

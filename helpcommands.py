@@ -18,13 +18,20 @@ class MyHelp(commands.Cog):
                 `$removemoderator` `servername` `@user` : Removes a user to the minecraft server moderator list \n
                 `$start` `servername` : Starts the specified server \n
                 `$stop` `servername` : Stops the specified server (Need to be a moderator of the minecraft server) \n
-                `$addplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Adds listed users to the whitelist/ops list \n
-                `$removeplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Removes listed users to the whitelist/ops list **NOT IMPLEMENTED YET** \n
-                `$delete` : deleting a server. See more info and options at $help delete 
-                `$transfer` `servername` `@user` : Transfer ownership of a server to another user
+                
                 """, inline = True)
                 return embed
             def page2():
+                embed=discord.Embed(color=0x00ffff)
+                embed.set_author(name="Main Help Page")
+                embed.add_field(name="List of active commands", value="""
+                `$addplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Adds listed users to the whitelist/ops list \n
+                `$removeplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Removes listed users to the whitelist/ops list **NOT IMPLEMENTED YET** \n
+                `$delete` : deleting a server. See more info and options at $help delete \n
+                `$transfer` `servername` `@user` : Transfer ownership of a server to another user
+                """, inline = True)
+                return embed
+            def page3():
                 embed=discord.Embed(color=0x00ffff)
                 embed.add_field(name="List of info commands", value="""
                 `$info` `servername` : Gets info of the server, like the name, type, and options that were set. \n
@@ -32,7 +39,7 @@ class MyHelp(commands.Cog):
                 `$status` `servername` : Lists the status of the specified server \n
                 `$ip` `servername` : Gets the IP of the specified server \n""", inline=True)
                 return embed
-            def page3():
+            def page4():
                 embed=discord.Embed(color=0x3cf00f)
                 embed.add_field(name="List of world management commands", value="""
                 `$oldworlds` `list` : Lists all the world backups you have
@@ -43,7 +50,8 @@ class MyHelp(commands.Cog):
 
                 """, inline=True)
                 return embed
-            pages = [page1(), page2()]
+
+            pages = [page1(), page2(), page3(), page4()]
             await self.pageturner(ctx,currentpage,pages)
 
         elif command == "create":
@@ -52,12 +60,18 @@ class MyHelp(commands.Cog):
                 embed=discord.Embed(color=0x3cf00f)
                 embed.set_author(name="How to create a Minecraft server with this bot")
                 embed.add_field(name="FORMAT:", value="""The format of the command is :\n
-                **$create `name`  `type`  `options`**\n
+                **$create `name`(one word, alphabet only)  `type`  `options`**\n 
                 There are currently 4 supported types:\n
                 `vanilla`  `custom`  `paper`  `bukkit`\n \n
                 
                 """, inline=True)
-                embed.add_field(name="OPTIONS FORMAT:", value="Must be in all caps and have no spaces. \nIf multiple values, seperate using `|` (Shift + Backslash ( \\ ) ) \n\n`OPTION1=value,OPTION2=value1|value2`", inline=False)
+                embed.add_field(name="OPTIONS FORMAT:", value="""
+                Must be in **all caps** and have **no spaces**. \n
+                If multiple values, seperate using `|` (Shift + Backslash ( \\ ) ) \n\n
+                `OPTION1=value,OPTION2=value1|value2`
+                \nGo to the next page for info on options
+                
+                """, inline=False)
                 return embed
             def page2():
                 embed=discord.Embed(color=0x3cf00f)

@@ -25,6 +25,7 @@ async def create(name: str, env: dict, port: int, version = None):
         client.containers.run(imageversion, environment=env, ports=portnumber, name=name, detach=True)
         print("making container")
     except Exception as e:
+        print (e)
         try:
             process=client.containers.get(name)
             try: process.stop()
