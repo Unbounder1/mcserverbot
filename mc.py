@@ -28,12 +28,19 @@ class MC(commands.Cog):
         if self.get(ctx, name):
             await ctx.send('Server with name already exists.')
             return
+        
         querycheck = Query()
         maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
         maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
-        if len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))>=maxperuser:
+        maxworlds = self.conf.get(querycheck.guildId == ctx.guild.id)['maxworlds']
+        currentactive = len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))
+        if currentactive>=maxperuser:
             if str(ctx.author.id) not in botowners:
-                await ctx.send(f"You can only have {maxperuser} server per person")
+                await ctx.send(f"You can only have {maxperuser} servers active per person")
+                return
+        if len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id))) + currentactive >= maxworlds:
+            if str(ctx.author.id) not in botowners:
+                await ctx.send(f"You can only have {maxperuser} servers active per person")
                 return
         if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
             if str(ctx.author.id) not in botowners:
@@ -114,7 +121,11 @@ class MC(commands.Cog):
                     else:
                         await ctx.send("Please check your spelling for " + temp[0])
                         return               
-                env = {**defaultenv, **mainenv, **linkpropenv, **otherpropenv, 'SEED': seed, 'TYPE': mctype.upper()}
+            if mctype.lower() == "custom":
+                type = "VANILLA"
+            else:
+                type = mctype.upper()
+                env = {**defaultenv, **mainenv, **linkpropenv, **otherpropenv, 'SEED': seed, 'TYPE': type}
 
         #__checking universal arguments__
         
@@ -235,7 +246,6 @@ class MC(commands.Cog):
             arglist = args.split(",")
             for a in arglist:
                 try:
-                    restore = None
                     temp = a.split("=")
                     if temp[0] in intpropenv:           
                         try:
@@ -323,7 +333,7 @@ class MC(commands.Cog):
             env = {**intpropenv, **strpropenv,**boolpropenv, **linkpropenv, **otherpropenv, **maxmemory, **defaultenv}
             portdict = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
             port = portdict[0]['port']
-            replace = await podscript.replace(processname, env, port, restore)
+            replace = await podscript.replace(processname, env, port)
             await ctx.send(replace)
             self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
@@ -359,11 +369,13 @@ class MC(commands.Cog):
                     envdict[templst[0]] = templst[1]
                 try: version = envdict['VERSION']
                 except: version = "Latest"
+                volumepath = process.inspect()['Mounts'][0]['Source']
+               
                 self.backups.insert({
                     'volume':
                     {
-                        'name':process.inspect()['Mounts'][0]['Name'], 
-                        'Source':process.inspect()['Mounts'][0]['Source']
+                        'name': volumepath.split("/")[volumepath.split("/").index('volumes') + 1], 
+                        'Source': volumepath
                     }, 
                     'worldname': worldname, 
                     'type': ids[0]['type'],
@@ -388,7 +400,8 @@ class MC(commands.Cog):
                     await message.edit(content = "Deletion has been cancelled")
                     return
                 message = await ctx.send("Deleting the server...")
-                volume = client.volumes.get(process.inspect()['Mounts'][0]['Name'])
+                volumepath = process.inspect()['Mounts'][0]['Source']
+                volume = client.volumes.get(volumepath.split("/")[volumepath.split("/").index('volumes') + 1])
                 process.remove()
                 volume.remove()
             else:
@@ -626,7 +639,12 @@ class MC(commands.Cog):
             'ENABLE_AUTOSTOP': "false",
             'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
     }
-        env = {**defaultenv, **newenv}
+        mctype = oldworldinfo['type']
+        if mctype.lower() == "custom":
+            type = "VANILLA"
+        else:
+            type = mctype.upper()
+        env = {**defaultenv, **newenv, 'TYPE': type}
         port = None
         for p in range (int(os.getenv('PORT_MIN')),int(os.getenv('PORT_MAX'))):
             portchecker = Query()
@@ -692,12 +710,14 @@ Moderators: {','.join(moderatorlst)}
     async def max(self, ctx: Context):
         querycheck = Query()
         maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
+        maxworlds = self.conf.get(querycheck.guildId == ctx.guild.id)['maxworlds']
         maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
-        await ctx.send(f"""The max is **{maxperuser} server(s)** per person
-The max overall is **{maxperuser} minecraft servers** in each discord server
+        await ctx.send(f"""The max is **{maxperuser} server(s)** per person and a total of **{maxworlds}** worlds
+The server's max is **{maxservers} running minecraft servers** in each discord server: Please be considerate of other people.
 
 You have **{len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))}** server(s)
 There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))}** servers up currently""")
+
     @commands.command()
     async def on_command_error(ctx, error):
         if isinstance(error, commands.MissingRequiredArgument):
@@ -735,14 +755,14 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
             process=client.containers.get(processname)
             is_starting=is_loading=is_finishing=True
             while is_starting:
-                sleep(1)
+                await asyncio.sleep(1)
                 for i in process.logs(since=2):
                     if i.decode('utf-8').find("[init]") != -1:
                         await message.edit (content = "Started the Minecraft Server")
                         is_starting= False
                         break         
             while is_loading:
-                sleep(1)
+                await asyncio.sleep(1)
                 for i in process.logs(since=2):
                     if i.decode('utf-8').find("[ServerMain/INFO]") != -1:
                         await ctx.send("Preparing world...")
@@ -750,7 +770,7 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
                         break
             message = await ctx.send("Setting up the server")
             while is_finishing:
-                sleep(1)
+                await asyncio.sleep(1)
                 for i in process.logs(since=5):
                     if i.decode('utf-8').find('For help') != -1:
                         is_finishing= False

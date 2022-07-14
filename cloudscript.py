@@ -18,7 +18,7 @@ async def create(inputname: str, guildid: int, port: int):
     query = Query()
     db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
     prefix = db.get(query['guildId'] == guildid)['domainprefix']
-    name = prefix + "-" + inputname
+    name = inputname + "-" + prefix
     zone = cf.zones.get(params={'name': domain})
     zone_id = zone[0]['id']
 
@@ -29,7 +29,7 @@ async def delete(inputname: str, guildid: int):
     query = Query()
     db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
     prefix = db.get(query['guildId'] == guildid)['domainprefix']
-    name = prefix + "-" + inputname
+    name = inputname + "-" + prefix
     zone = cf.zones.get(params={'name': domain})
     zone_id = zone[0]['id']
 
@@ -46,7 +46,7 @@ async def findip(inputname: str, guildid: int):
     query = Query()
     db = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
     prefix = db.get(query['guildId'] == guildid)['domainprefix']
-    name = prefix + "-" + inputname + "." + domain
+    name = inputname + "-" + prefix + "." + domain
     return name
 async def virustest(url: str):
     with vt.Client(CLIENT_TOKEN) as client:
