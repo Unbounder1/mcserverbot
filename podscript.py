@@ -18,7 +18,7 @@ async def create(name: str, env: dict, port: int, version = None):
     imageversion = 'itzg/minecraft-server'
     if version:
         versionsplit = version.split(".")
-        if (versionsplit[0] == 1) & (versionsplit[1]<17):
+        if (int(versionsplit[0]) == 1) & (int(versionsplit[1])<17):
             imageversion = 'itzg/minecraft-server:java8-multiarch'
             
     try:

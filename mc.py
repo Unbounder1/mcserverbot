@@ -30,7 +30,9 @@ class MC(commands.Cog):
         if self.get(ctx, name):
             await ctx.send('Server with name already exists.')
             return
-        
+        if name == "help":
+            await ctx.send("Did you mean $help create?")
+            return
         querycheck = Query()
         maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
         maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
@@ -345,9 +347,10 @@ class MC(commands.Cog):
             await ctx.send('You were blacklisted by the bot owner')
             return  
         owner = self.db.get((where('serverId') == ctx.guild.id) & (where('name') == name))['owner']
-        if owner != ctx.author.id:
-            await ctx.send("Only the minecraft server owner can do this")
-            return
+        if str(ctx.author.id) not in botowners:
+            if owner != ctx.author.id:
+                await ctx.send("Only the minecraft server owner can do this")
+                return
         message = await ctx.send(f"Attempting to delete {name}")
         ids = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
         if len(ids) == 0:
@@ -391,8 +394,8 @@ class MC(commands.Cog):
                 message = await ctx.send("Deleting the server...")
                 process.remove()
             elif keepworld.lower() == "false":
-                def check(message): 
-                    return message.author == ctx.author and message.channel == ctx.channel
+                def check(m): 
+                    return m.author == ctx.author and m.channel == ctx.channel
                 try: 
                     await ctx.send("Are you sure you want to delete the world (There is no going back):\nTo confirm type (y)es. If no, type anything else")
                     response = await self.bot.wait_for('message', check=check, timeout=30.0)
@@ -415,7 +418,58 @@ class MC(commands.Cog):
             except Exception as e: await ctx.send(e)
             self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
             await message.edit(content = f'Server with name "{name}" deleted.')
-
+    @commands.command()
+    async def transfer(self, ctx:Context, name: str, newowner: str):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        owner = self.db.get((where('serverId') == ctx.guild.id) & (where('name') == name))['owner']
+        if owner != ctx.author.id:
+            await ctx.send("Only the minecraft server owner can do this")
+            return
+        owner = newowner.replace("<","")
+        owner = owner.replace(">","")
+        owner = owner.replace("@","")
+        owner = owner.replace("!","")
+        owner = int(owner)
+        querycheck = Query()
+        maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
+        maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
+        maxworlds = self.conf.get(querycheck.guildId == ctx.guild.id)['maxworlds']
+        currentactive = len(self.db.search((querycheck.owner == owner) & (querycheck.guildId == ctx.guild.id)))
+        if currentactive>=maxperuser:
+            if str(owner) not in botowners:
+                await ctx.send(f"You can only have {maxperuser} servers active per person")
+                return
+        if len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == owner))) + currentactive >= maxworlds:
+            if str(owner) not in botowners:
+                await ctx.send(f"You can only have {maxperuser} servers active per person")
+                return
+        if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
+            if str(owner) not in botowners:
+                await ctx.send(f"This server can only have {maxservers} servers up at once")
+                return
+        def check(m): 
+            return m.author == ctx.author and m.channel == ctx.channel
+        try: 
+            await ctx.send("Are you sure you want to transfer the world?\nTo confirm type (y)es. If no, type anything else")
+            response = await self.bot.wait_for('message', check=check, timeout=30.0)
+        except asyncio.TimeoutError: return
+        def check1(m): 
+            return m.author.id == int(owner) and m.channel == ctx.channel
+        try: 
+            message = await ctx.send(f"Are you sure you want to accept the ownership? To confirm, have THEM type (y)es. If no, type anything else. \nCancelling in 30 seconds")
+            response = await self.bot.wait_for('message', check=check1, timeout=30.0)
+        except asyncio.TimeoutError: 
+            await message.edit(content = f"<@{owner}> did not reply in time. Please try again")
+            return
+        if response.content.lower() not in ("yes", "y"):
+            await ctx.send(f"<@{owner}> did not accept the transfer request.")
+            return
+        try: self.db.update({'owner': owner}, (where('serverId') == ctx.guild.id) & (where('name') == name))
+        except: ctx.send("Something went wrong")
+        await ctx.send("Transfer was successful")
+        
     @commands.command()
     async def list(self, ctx: Context, type = all):
         if self.blacklisted(str(ctx.author.id)):
