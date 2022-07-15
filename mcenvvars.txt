@@ -1,0 +1,20 @@
+`TYPE`: The type of server, ie paper, vanilla
+`SPAWN_PROTECTION`: Changes the spawn protection. Valid values are integers
+`VIEW_DISTANCE`: Changes the view distance. Valid values are integers
+`MAX_BUILD_HEIGHT`: Changes the maximum build height of the world. Valid values are integers
+`MAX_WORLD_SIZE`: Changes the maximum world size with the border. Valid values are integers
+`MAX_PLAYERS`: Changes the maximum player count in the server. Valid values are integers
+`SERVER_NAME`: Changes the server name.
+`MOTD`: Changes the message of the day. Put the message of the day between quotes "like this". If you want to use formatting codes, use the ascii character §
+`DIFFICULTY`: Changes the difficulty: Valid options include hard, normal, easy
+`MODE`: Changes the default gamemode. Valid values include spectator, survival, adventure, creative
+`ENABLE_COMMAND_BLOCK`: Allows or Disallows command blocks. Valid values are true or false
+`HARDCORE`: Determines if the game will be hardcore or not. Valid values are true or false
+`ENFORCE_WHITELIST`: Determines if the whitelist is active. Default value is false, valid values are true or false
+`ALLOW_FLIGHT`: Determines if flight is allowed. Useful if you trust people not to hack, and you dont want to sometimes be kicked for fly for lag. Valid values are true or false
+`ONLINE_MODE`: Determines if the server is in online mode or not. Offline mode is for cracked minecraft clients. Valid values are true or false
+`DATAPACKS`: Links for the datapacks to be added or set. Setting means that the old ones will be deleten. The link will be a direct download link, which means if you paste the URL into the browser it will automatically start a download. Format is DATAPACKS=add|linktodatapack1|linktodatapack2 OR DATAPACKS=set|linktodatapack1|linktodatapack2
+`ICON`: Link to the server icon. The link should be a link to the picture only ie imgur.com/image.png
+`VANILLATWEAKS_SHARECODE`: Links for the vanillatweaks codes to be added or set. Setting means that the old ones will be deleten. The sharecode will be the last part of the url excluding the # symbol. Format is VANILLATWEAKS_SHARECODE=add|sharecode1|sharecode2 OR VANILLATWEAKS_SHARECODE=set|sharecode1|sharecode2
+`SPIGET_RESOURCES`: Links for the spigot plugins to be added or set. Setting means that the old ones will be deleten. The resource is the last part of the url which should just be numbers. Format is SPIGET_RESOURCES=add|spigotplugin1|spigotplugin2 OR SPIGET_RESOURCES=set|spigotplugin1|spigotplugin2
+``:
