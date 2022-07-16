@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import discord
 from discord.ext import commands
 from mc import MC
+from mcinfo import MCInfo
+from mcmoderation import MCModeration
 from setupcommands import setup
 from helpcommands import MyHelp
 from volumemanagement import ManageVolumes
@@ -25,6 +27,8 @@ async def globally_block_dms(ctx):
 
 bot.add_cog(setup(bot))
 bot.add_cog(MC(bot))
+bot.add_cog(MCInfo(bot))
+bot.add_cog(MCModeration(bot))
 bot.add_cog(MyHelp(bot))
 bot.add_cog(ManageVolumes(bot))
 bot.run(CLIENT_TOKEN)
