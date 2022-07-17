@@ -29,7 +29,7 @@ class setup(commands.Cog):
         except: maxservers = 0
         try: maxperuser=self.conf.get(query.guildId  == ctx.guild.id)['maxperuser']
         except: maxperuser = 0
-        try: maxperuser=self.conf.get(query.guildId  == ctx.guild.id)['maxworlds']
+        try: maxworlds=self.conf.get(query.guildId  == ctx.guild.id)['maxworlds']
         except: maxworlds = 0
         self.conf.upsert({'guildId': ctx.guild.id, 'domainprefix': name,'maxservers': maxservers, 'maxperuser': maxperuser, 'maxworlds': maxworlds}, query.guildId == ctx.guild.id)
         await ctx.send(f"Changed this server's prefix to {name}")
