@@ -52,278 +52,289 @@ class MC(commands.Cog):
             }
     @commands.command()
     async def create(self, ctx: Context, name: str, mctype = "vanilla", *, args = '0'):
-        await self.logs(ctx)
-        """create a server"""
-        if self.blacklisted(str(ctx.author.id)):
-            await ctx.send('You were blacklisted by the bot owner')
-            return
-        if self.get(ctx, name):
-            await ctx.send('Server with name already exists.')
-            return
-        if name == "help":
-            await ctx.send("Did you mean $help create?")
-            return
-        querycheck = Query()
-        maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
-        maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
-        maxworlds = self.conf.get(querycheck.guildId == ctx.guild.id)['maxworlds']
-        currentactive = len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))
-        if currentactive>=maxperuser:
-            if str(ctx.author.id) not in botowners:
-                await ctx.send(f"You can only have {maxperuser} servers active per person")
+        try:
+            await self.logs(ctx)
+            """create a server"""
+            if self.blacklisted(str(ctx.author.id)):
+                await ctx.send('You were blacklisted by the bot owner')
                 return
-        owned = len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id)))
-        if (owned + currentactive)>= maxworlds:
-            if str(ctx.author.id) not in botowners:
-                await ctx.send(f"You can only have {maxperuser} servers active per person")
+            if self.get(ctx, name):
+                await ctx.send('Server with name already exists.')
                 return
-        if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
-            if str(ctx.author.id) not in botowners:
-                await ctx.send(f"This server can only have {maxservers} servers up at once")
+            if name == "help":
+                await ctx.send("Did you mean $help create?")
                 return
-        message = await ctx.send("Attempting to create the world (may take a few minutes if you used a link)...")
-        mainenv = {'VERSION': None,'MAX_MEMORY': None,'MOTD': "A minecraft server created by the Voark bot"}
-        #__setting up the universal env variables__
-        if len(args)>0 and args!="0":
-            argslist = args.split(",")
-            for a in argslist:
-                temp = a.split("=")
-                if temp[0] == "MAX_MEMORY":
-                    try:
-                        if 2<=int(temp[1])<=6: #MIN/MAX MEMORY USAGE
-                            mainenv[temp[0]]=str(temp[1]) + "G"
-                        elif ctx.author.id in botowners:
-                            mainenv[temp[0]]=str(temp[1]) + "G"
-                        else:
-                            raise OverflowError
-                    except OverflowError:
-                        await ctx.send("Memory can only be set between 2 and 8 gigabytes. Ask the bot owner if you need more")
-                        return
-                elif temp[0] == 'VERSION':
-                    mainenv[temp[0]]=temp[1]
-                elif temp[0] == 'MOTD':
-                    mainenv[temp[0]]=temp[1].replace('"','')
-        
-        #__setting up the specific environmental variables__
-        if mctype.lower() == "vanilla":
-            env = {**self.defaultenv, **mainenv}
-        elif (mctype.lower() == "custom") or (mctype.lower() == "paper") or (mctype.lower() == "bukkit") or (mctype.lower() == "spigot"):
-            linkpropenv = dict.fromkeys(['DATAPACKS','ICON','WORLD'], None)
-            otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
-            seed = None
-
+            querycheck = Query()
+            maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
+            maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
+            maxworlds = self.conf.get(querycheck.guildId == ctx.guild.id)['maxworlds']
+            currentactive = len(self.db.search((querycheck.owner == ctx.author.id) & (querycheck.guildId == ctx.guild.id)))
+            if currentactive>=maxperuser:
+                if str(ctx.author.id) not in botowners:
+                    await ctx.send(f"You can only have {maxperuser} servers active per person")
+                    return
+            owned = len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id)))
+            if (owned + currentactive)>= maxworlds:
+                if str(ctx.author.id) not in botowners:
+                    await ctx.send(f"You can only have {maxperuser} servers active per person")
+                    return
+            if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
+                if str(ctx.author.id) not in botowners:
+                    await ctx.send(f"This server can only have {maxservers} servers up at once")
+                    return
+            message = await ctx.send("Attempting to create the world (may take a few minutes if you used a link)...")
+            mainenv = {'VERSION': None,'MAX_MEMORY': None,'MOTD': "A minecraft server created by the Voark bot"}
+            #__setting up the universal env variables__
             if len(args)>0 and args!="0":
-                arglist = args.split(",")
-                for a in arglist:
+                argslist = args.split(",")
+                for a in argslist:
                     temp = a.split("=")
-                    #__malware/validity checker for links
-                    if temp[0] in linkpropenv:
-
-                        analysis = await cloudscript.virustest(temp[1])
-                        if analysis == '1':
-                            linkpropenv[temp[0]]=temp[1]
-                            await ctx.send("Check 1: Links are valid")
-                        else:
-                            await ctx.send(analysis)
-                    elif temp[0] in otherpropenv:
-                        otherpropenv[temp[0]]=temp[1]
-                    elif temp[0] == "SEED":
-                        seed = temp[1]
-                    elif temp[0] in mainenv:
-                        continue
-                    else:
-                        await ctx.send("Please check your spelling for " + temp[0])
-                        return               
-            if mctype.lower() == "custom":
-                type = "VANILLA"
-            else:
-                type = mctype.upper()
-            env = {**self.defaultenv, **mainenv, **linkpropenv, **otherpropenv, 'SEED': seed, 'TYPE': type}
-
-        #__checking universal arguments__
-        
-        # if len(args)>0 and args!="0":
-        #     arglist = args.split(",")
-        #     for a in arglist:
-        #         temp = a.split("=")
-        #         if temp[0] in mainenv:
-        #             mainenv[temp[0]]=temp[1]
-        #         else:
-        #             await ctx.send("Please check your spelling for " + temp[0])
-        #             return
-
-
-        #add modpack stuff later --------------------------
-
-        port = None
-        for p in range (int(os.getenv('PORT_MIN')),int(os.getenv('PORT_MAX'))):
-            portchecker = Query()
-            if self.db.contains(portchecker.port == p):
-                continue
-            else:
-                port = p
-                break
-        owner = ctx.author.id
-        moderators = []
-        self.db.insert({
-        'guildId': ctx.guild.id,
-        'name': name,
-        'port': port,
-        'type': mctype,
-        'owner': owner,
-        'moderators': moderators,
-        'status': 'down'
-        })
-
-
-        await message.edit(content = f'Server with name "{name}" on "{mctype}" added.')
-        processname = name + "." + str(ctx.guild.id)
-
-        #__starting the podman container__
-        creation = await podscript.create(processname, env, port, mainenv['VERSION'])
-        if creation==0:
-            await ctx.send("Something went wrong. Check your spelling and try again")
-            self.db.remove((where('guildId') == ctx.guild.id) & (where('name') == name))
-            return
-        
-        finalip = await cloudscript.create(name, ctx.guild.id, port)
-
-        #__sending server status messages__
-        await self.startup(ctx,processname, finalip)
-        self.db.update({'status': 'up'}, (where('guildId') == ctx.guild.id) & (where('name') == name))
-        return
-    @commands.command()
-    async def set(self, ctx: Context, name: str, *, args):
-        await self.logs(ctx)
-        if self.blacklisted(str(ctx.author.id)):
-            await ctx.send('You were blacklisted by the bot owner')
-            return
-        if not self.get(ctx, name):
-            await ctx.send('Server with this name does not exist.')
-            return
-        if not self.perms(ctx, name):
-            await ctx.send("Only the minecraft server owner and moderators can do this")
-            return
-        await ctx.send("Attempting to set variables")
-        processname = name + "." + str(ctx.guild.id)
-        intpropenv = strpropenv = specialpropenv = boolpropenv = {}
-        intpropenv = dict.fromkeys(['TYPE','SPAWN_PROTECTION','VIEW_DISTANCE','MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
-        strpropenv = dict.fromkeys(['SERVER_NAME','MOTD','DIFFICULTY', 'MODE'], None)
-        boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','ENFORCE_WHITELIST', 'ALLOW_FLIGHT', 'ONLINE_MODE'], None)
-        linkpropenv = dict.fromkeys(['DATAPACKS','ICON'], None)
-        otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
-        maxmemory = {'MAX_MEMORY': None}
-        env = {'intpropenv':intpropenv,'strpropenv':strpropenv,'boolpropenv':boolpropenv,'linkpropenv':linkpropenv,'otherpropenv':otherpropenv, 'maxmemory': maxmemory}
-
-
-        oldenvlst = await podscript.findenv(processname)
-        oldenvdict = {}
-        #__converting the list output of 'podman inspect' to a dictionary format__
-        for variables in oldenvlst:             
-            templst = variables.split("=")
-            oldenvdict[templst[0]] = templst[1]
-        #__moving already set variables to empty env variables__
-        for oldvariables in oldenvdict:
-            for types in env:                       
-                for variables in env[types]:
-                    if oldvariables in env[types]:
-                        env[types][oldvariables] = oldenvdict[oldvariables]
-        
-                        
-        if len(args)>0: 
-            arglist = args.split(",")
-            for a in arglist:
-                try:
-                    temp = a.split("=")
-                    if temp[0] in intpropenv:           
+                    if temp[0] == "MAX_MEMORY":
                         try:
-                            intpropenv[temp[0]]=str(int(temp[1]))
-                        except:
-                            raise IndexError('did not enter a integer')
-                    elif temp[0] in strpropenv:
-                        strpropenv[temp[0]]=str(temp[1])
-                    elif temp[0] in boolpropenv:
-                        if (temp[1].lower() == "true" or temp[1].lower() == "false"):
-                            boolpropenv[temp[0]]=(temp[1])
-                        else:
-                            raise IndexError('did not enter a valid boolean')
-                    elif temp[0] in linkpropenv:
-                        if temp[0] == 'DATAPACKS':
-                            final = str(linkpropenv['DATAPACKS'])
-                            linklst = temp[1].split('|')
-                            lst = []
-                            for link in linklst:
-                                if (link=="add") or (link.lower()=="set"):
-                                    continue
-                                else:
-                                    analysis = await cloudscript.virustest(link)
-                                    if analysis == '1':
-                                        lst.append(link)
-                                    else:
-                                        await ctx.send(analysis)
-                                        return
-                            if linklst[0].lower() == "add":
-                                del linklst[0]
-                                for old in linkpropenv['DATAPACKS'].split(','):
-                                    lst.append(old)
-                                lst = list(dict.fromkeys(lst)) # removes duplicates
-                                linkpropenv['DATAPACKS'] = ",".join(lst)
-                            if linklst[0].lower() == "set":
-                                del linklst[0]
-                                lst = list(dict.fromkeys(lst)) # removes duplicates
-                                linkpropenv['DATAPACKS'] = ",".join(lst)
-                        else:
-                            analysis = await cloudscript.virustest(link)
-                            if analysis == '1':
-                                linkpropenv[temp[0]]=temp[1]
-                            else:
-                                await ctx.send(analysis)
-                    elif temp[0] in otherpropenv:                      
-                        linklst = temp[1].split('|')
-                        if linklst[0].lower() == "add":
-                            del linklst[0]
-                            for link in linklst:
-                                final = otherpropenv[temp[0]]
-                                oldlst = final.split(",")
-                                if link not in oldlst:
-                                    final = final + str(link)
-                                    final = final + ","
-                                else:
-                                    final = final + ","
-                            if final[-1:] == ",":
-                                final = final[:-1]
-                        if linklst[0].lower() == "set":
-                            del linklst[0]
-                            final = ""
-                            for link in linklst:
-                                final = final + str(link)
-                                final = final + ","
-                            if final[-1:] == ",":
-                                final = final[:-1]
-                        otherpropenv[temp[0]]=final
-                    elif temp[0] == 'MAX_MEMORY':
-                        try:
-                            if 2<int(temp[1])<=6:
-                                maxmemory[temp[0]]=str(temp[1]) + "G"
+                            if 2<=int(temp[1])<=6: #MIN/MAX MEMORY USAGE
+                                mainenv[temp[0]]=str(temp[1]) + "G"
+                            elif ctx.author.id in botowners:
+                                mainenv[temp[0]]=str(temp[1]) + "G"
                             else:
                                 raise OverflowError
-                        except:
-                            await ctx.send("Memory can only be between 2 and 8.")
+                        except OverflowError:
+                            await ctx.send("Memory can only be set between 2 and 8 gigabytes. Ask the bot owner if you need more")
                             return
-                    else:
-                        await ctx.send(f"Did not find {temp[0]} in valid environment variables. Please try again")
-                        return
-                except KeyboardInterrupt:
-                        await ctx.send("Error reading values. Check your spelling and try again")
-                        return
+                    elif temp[0] == 'VERSION':
+                        mainenv[temp[0]]=temp[1]
+                    elif temp[0] == 'MOTD':
+                        mainenv[temp[0]]=temp[1].replace('"','')
+            
+            #__setting up the specific environmental variables__
+            if mctype.lower() == "vanilla":
+                env = {**self.defaultenv, **mainenv}
+            elif (mctype.lower() == "custom") or (mctype.lower() == "paper") or (mctype.lower() == "bukkit") or (mctype.lower() == "spigot"):
+                linkpropenv = dict.fromkeys(['DATAPACKS','ICON','WORLD'], None)
+                otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
+                seed = None
 
-        #__setting the new environment variables as a new container while mounting the old volume__
-            env = {**intpropenv, **strpropenv,**boolpropenv, **linkpropenv, **otherpropenv, **maxmemory, **self.defaultenv}
-            portdict = self.db.search((where('guildId') == ctx.guild.id) & (where('name') == name))
-            port = portdict[0]['port']
-            replace = await podscript.replace(processname, env, port)
-            await ctx.send(replace)
-            self.db.update({'status': 'down'}, (where('guildId') == ctx.guild.id) & (where('name') == name))
+                if len(args)>0 and args!="0":
+                    arglist = args.split(",")
+                    for a in arglist:
+                        temp = a.split("=")
+                        #__malware/validity checker for links
+                        if temp[0] in linkpropenv:
+
+                            analysis = await cloudscript.virustest(temp[1])
+                            if analysis == '1':
+                                linkpropenv[temp[0]]=temp[1]
+                                await ctx.send("Check 1: Links are valid")
+                            else:
+                                await ctx.send(analysis)
+                        elif temp[0] in otherpropenv:
+                            otherpropenv[temp[0]]=temp[1]
+                        elif temp[0] == "SEED":
+                            seed = temp[1]
+                        elif temp[0] in mainenv:
+                            continue
+                        else:
+                            await ctx.send("Please check your spelling for " + temp[0])
+                            return               
+                if mctype.lower() == "custom":
+                    type = "VANILLA"
+                else:
+                    type = mctype.upper()
+                env = {**self.defaultenv, **mainenv, **linkpropenv, **otherpropenv, 'SEED': seed, 'TYPE': type}
+
+            #__checking universal arguments__
+            
+            # if len(args)>0 and args!="0":
+            #     arglist = args.split(",")
+            #     for a in arglist:
+            #         temp = a.split("=")
+            #         if temp[0] in mainenv:
+            #             mainenv[temp[0]]=temp[1]
+            #         else:
+            #             await ctx.send("Please check your spelling for " + temp[0])
+            #             return
+
+
+            #add modpack stuff later --------------------------
+
+            port = None
+            for p in range (int(os.getenv('PORT_MIN')),int(os.getenv('PORT_MAX'))):
+                portchecker = Query()
+                if self.db.contains(portchecker.port == p):
+                    continue
+                else:
+                    port = p
+                    break
+            owner = ctx.author.id
+            moderators = []
+            self.db.insert({
+            'guildId': ctx.guild.id,
+            'name': name,
+            'port': port,
+            'type': mctype,
+            'owner': owner,
+            'moderators': moderators,
+            'status': 'down'
+            })
+
+
+            await message.edit(content = f'Server with name "{name}" on "{mctype}" added.')
+            processname = name + "." + str(ctx.guild.id)
+
+            #__starting the podman container__
+            creation = await podscript.create(processname, env, port, mainenv['VERSION'])
+            if creation==0:
+                await ctx.send("Something went wrong. Check your spelling and try again")
+                self.db.remove((where('guildId') == ctx.guild.id) & (where('name') == name))
+                return
+            
+            finalip = await cloudscript.create(name, ctx.guild.id, port)
+
+            #__sending server status messages__
+            await self.startup(ctx,processname, finalip)
+            self.db.update({'status': 'up'}, (where('guildId') == ctx.guild.id) & (where('name') == name))
+            return
+        except:
+            await ctx.send("Something went wrong. Make sure what you entered is right and try again")
+            try: 
+                self.db.remove((where('guildId') == ctx.guild.id) & (where('name') == name))
+            except: pass
+            return
+    @commands.command()
+    async def set(self, ctx: Context, name: str, *, args):
+        try:
+            await self.logs(ctx)
+            if self.blacklisted(str(ctx.author.id)):
+                await ctx.send('You were blacklisted by the bot owner')
+                return
+            if not self.get(ctx, name):
+                await ctx.send('Server with this name does not exist.')
+                return
+            if not self.perms(ctx, name):
+                await ctx.send("Only the minecraft server owner and moderators can do this")
+                return
+            await ctx.send("Attempting to set variables")
+            processname = name + "." + str(ctx.guild.id)
+            intpropenv = strpropenv = specialpropenv = boolpropenv = {}
+            intpropenv = dict.fromkeys(['TYPE','SPAWN_PROTECTION','VIEW_DISTANCE','MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
+            strpropenv = dict.fromkeys(['SERVER_NAME','MOTD','DIFFICULTY', 'MODE'], None)
+            boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','ENFORCE_WHITELIST', 'ALLOW_FLIGHT', 'ONLINE_MODE'], None)
+            linkpropenv = dict.fromkeys(['DATAPACKS','ICON'], None)
+            otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
+            maxmemory = {'MAX_MEMORY': None}
+            env = {'intpropenv':intpropenv,'strpropenv':strpropenv,'boolpropenv':boolpropenv,'linkpropenv':linkpropenv,'otherpropenv':otherpropenv, 'maxmemory': maxmemory}
+
+
+            oldenvlst = await podscript.findenv(processname)
+            oldenvdict = {}
+            #__converting the list output of 'podman inspect' to a dictionary format__
+            for variables in oldenvlst:             
+                templst = variables.split("=")
+                oldenvdict[templst[0]] = templst[1]
+            #__moving already set variables to empty env variables__
+            for oldvariables in oldenvdict:
+                for types in env:                       
+                    for variables in env[types]:
+                        if oldvariables in env[types]:
+                            env[types][oldvariables] = oldenvdict[oldvariables]
+            
+                            
+            if len(args)>0: 
+                arglist = args.split(",")
+                for a in arglist:
+                    try:
+                        temp = a.split("=")
+                        if temp[0] in intpropenv:           
+                            try:
+                                intpropenv[temp[0]]=str(int(temp[1]))
+                            except:
+                                raise IndexError('did not enter a integer')
+                        elif temp[0] in strpropenv:
+                            strpropenv[temp[0]]=str(temp[1])
+                        elif temp[0] in boolpropenv:
+                            if (temp[1].lower() == "true" or temp[1].lower() == "false"):
+                                boolpropenv[temp[0]]=(temp[1])
+                            else:
+                                raise IndexError('did not enter a valid boolean')
+                        elif temp[0] in linkpropenv:
+                            if temp[0] == 'DATAPACKS':
+                                final = str(linkpropenv['DATAPACKS'])
+                                linklst = temp[1].split('|')
+                                lst = []
+                                for link in linklst:
+                                    if (link=="add") or (link.lower()=="set"):
+                                        continue
+                                    else:
+                                        analysis = await cloudscript.virustest(link)
+                                        if analysis == '1':
+                                            lst.append(link)
+                                        else:
+                                            await ctx.send(analysis)
+                                            return
+                                if linklst[0].lower() == "add":
+                                    del linklst[0]
+                                    for old in linkpropenv['DATAPACKS'].split(','):
+                                        lst.append(old)
+                                    lst = list(dict.fromkeys(lst)) # removes duplicates
+                                    linkpropenv['DATAPACKS'] = ",".join(lst)
+                                if linklst[0].lower() == "set":
+                                    del linklst[0]
+                                    lst = list(dict.fromkeys(lst)) # removes duplicates
+                                    linkpropenv['DATAPACKS'] = ",".join(lst)
+                            else:
+                                analysis = await cloudscript.virustest(link)
+                                if analysis == '1':
+                                    linkpropenv[temp[0]]=temp[1]
+                                else:
+                                    await ctx.send(analysis)
+                        elif temp[0] in otherpropenv:                      
+                            linklst = temp[1].split('|')
+                            if linklst[0].lower() == "add":
+                                del linklst[0]
+                                for link in linklst:
+                                    final = otherpropenv[temp[0]]
+                                    oldlst = final.split(",")
+                                    if link not in oldlst:
+                                        final = final + str(link)
+                                        final = final + ","
+                                    else:
+                                        final = final + ","
+                                if final[-1:] == ",":
+                                    final = final[:-1]
+                            if linklst[0].lower() == "set":
+                                del linklst[0]
+                                final = ""
+                                for link in linklst:
+                                    final = final + str(link)
+                                    final = final + ","
+                                if final[-1:] == ",":
+                                    final = final[:-1]
+                            otherpropenv[temp[0]]=final
+                        elif temp[0] == 'MAX_MEMORY':
+                            try:
+                                if 2<int(temp[1])<=6:
+                                    maxmemory[temp[0]]=str(temp[1]) + "G"
+                                else:
+                                    raise OverflowError
+                            except:
+                                await ctx.send("Memory can only be between 2 and 8.")
+                                return
+                        else:
+                            await ctx.send(f"Did not find {temp[0]} in valid environment variables. Please try again")
+                            return
+                    except KeyboardInterrupt:
+                            await ctx.send("Error reading values. Check your spelling and try again")
+                            return
+
+            #__setting the new environment variables as a new container while mounting the old volume__
+                env = {**intpropenv, **strpropenv,**boolpropenv, **linkpropenv, **otherpropenv, **maxmemory, **self.defaultenv}
+                portdict = self.db.search((where('guildId') == ctx.guild.id) & (where('name') == name))
+                port = portdict[0]['port']
+                replace = await podscript.replace(processname, env, port)
+                await ctx.send(replace)
+                self.db.update({'status': 'down'}, (where('guildId') == ctx.guild.id) & (where('name') == name))
+        except:
+            await ctx.send("Something went wrong please try again")
+            return
     @commands.command()
     async def delete(self, ctx: Context, name: str, keepworld = "False", worldname = None, * ,args = "A minecraft server"):
         await self.logs(ctx)
@@ -414,57 +425,61 @@ class MC(commands.Cog):
             await message.edit(content = f'Server with name "{name}" deleted.')
     @commands.command()
     async def transfer(self, ctx:Context, name: str, newowner: str):
-        await self.logs(ctx)
-        if self.blacklisted(str(ctx.author.id)):
-            await ctx.send('You were blacklisted by the bot owner')
-            return
-        owner = self.db.get((where('guildId') == ctx.guild.id) & (where('name') == name))['owner']
-        if owner != ctx.author.id:
-            await ctx.send("Only the minecraft server owner can do this")
-            return
-        owner = newowner.replace("<","")
-        owner = owner.replace(">","")
-        owner = owner.replace("@","")
-        owner = owner.replace("!","")
-        owner = int(owner)
-        querycheck = Query()
-        maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
-        maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
-        maxworlds = self.conf.get(querycheck.guildId == ctx.guild.id)['maxworlds']
-        currentactive = len(self.db.search((querycheck.owner == owner) & (querycheck.guildId == ctx.guild.id)))
-        if currentactive>=maxperuser:
-            if str(ctx.author.id) not in botowners:
-                await ctx.send(f"They can only have {maxperuser} servers active per person")
+        try:
+            await self.logs(ctx)
+            if self.blacklisted(str(ctx.author.id)):
+                await ctx.send('You were blacklisted by the bot owner')
                 return
-        owned = len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id)))
-        if (owned + currentactive)>= maxworlds:
-            if str(ctx.author.id) not in botowners:
-                await ctx.send(f"You can only have {maxperuser} servers active per person")
+            owner = self.db.get((where('guildId') == ctx.guild.id) & (where('name') == name))['owner']
+            if owner != ctx.author.id:
+                await ctx.send("Only the minecraft server owner can do this")
                 return
-        if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
-            if str(ctx.author.id) not in botowners:
-                await ctx.send(f"This server can only have {maxservers} servers up at once")
+            owner = newowner.replace("<","")
+            owner = owner.replace(">","")
+            owner = owner.replace("@","")
+            owner = owner.replace("!","")
+            owner = int(owner)
+            querycheck = Query()
+            maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
+            maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
+            maxworlds = self.conf.get(querycheck.guildId == ctx.guild.id)['maxworlds']
+            currentactive = len(self.db.search((querycheck.owner == owner) & (querycheck.guildId == ctx.guild.id)))
+            if currentactive>=maxperuser:
+                if str(ctx.author.id) not in botowners:
+                    await ctx.send(f"They can only have {maxperuser} servers active per person")
+                    return
+            owned = len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id)))
+            if (owned + currentactive)>= maxworlds:
+                if str(ctx.author.id) not in botowners:
+                    await ctx.send(f"You can only have {maxperuser} servers active per person")
+                    return
+            if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
+                if str(ctx.author.id) not in botowners:
+                    await ctx.send(f"This server can only have {maxservers} servers up at once")
+                    return
+            def check(m): 
+                return m.author == ctx.author and m.channel == ctx.channel
+            try: 
+                await ctx.send("Are you sure you want to transfer the world?\nTo confirm type (y)es. If no, type anything else")
+                response = await self.bot.wait_for('message', check=check, timeout=30.0)
+            except asyncio.TimeoutError: return
+            def check1(m): 
+                return m.author.id == int(owner) and m.channel == ctx.channel
+            try: 
+                message = await ctx.send(f"Are you sure you want to accept the ownership? To confirm, have THEM type (y)es. If no, type anything else. \nCancelling in 30 seconds")
+                response = await self.bot.wait_for('message', check=check1, timeout=30.0)
+            except asyncio.TimeoutError: 
+                await message.edit(content = f"<@{owner}> did not reply in time. Please try again")
                 return
-        def check(m): 
-            return m.author == ctx.author and m.channel == ctx.channel
-        try: 
-            await ctx.send("Are you sure you want to transfer the world?\nTo confirm type (y)es. If no, type anything else")
-            response = await self.bot.wait_for('message', check=check, timeout=30.0)
-        except asyncio.TimeoutError: return
-        def check1(m): 
-            return m.author.id == int(owner) and m.channel == ctx.channel
-        try: 
-            message = await ctx.send(f"Are you sure you want to accept the ownership? To confirm, have THEM type (y)es. If no, type anything else. \nCancelling in 30 seconds")
-            response = await self.bot.wait_for('message', check=check1, timeout=30.0)
-        except asyncio.TimeoutError: 
-            await message.edit(content = f"<@{owner}> did not reply in time. Please try again")
+            if response.content.lower() not in ("yes", "y"):
+                await ctx.send(f"<@{owner}> did not accept the transfer request.")
+                return
+            try: self.db.update({'owner': owner}, (where('guildId') == ctx.guild.id) & (where('name') == name))
+            except: ctx.send("Something went wrong")
+            await ctx.send("Transfer was successful")
+        except:
+            await ctx.send("It looks like something went wrong. Please check your parameters and try again")
             return
-        if response.content.lower() not in ("yes", "y"):
-            await ctx.send(f"<@{owner}> did not accept the transfer request.")
-            return
-        try: self.db.update({'owner': owner}, (where('guildId') == ctx.guild.id) & (where('name') == name))
-        except: ctx.send("Something went wrong")
-        await ctx.send("Transfer was successful")
         
     @commands.command()
     async def list(self, ctx: Context, type = "all"):
