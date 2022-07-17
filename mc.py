@@ -193,7 +193,8 @@ class MC(commands.Cog):
             await self.startup(ctx,processname, finalip)
             self.db.update({'status': 'up'}, (where('guildId') == ctx.guild.id) & (where('name') == name))
             return
-        except:
+        except Exception as e:
+            print (e)
             await ctx.send("Something went wrong. Make sure what you entered is right and try again")
             try: 
                 self.db.remove((where('guildId') == ctx.guild.id) & (where('name') == name))
@@ -332,7 +333,8 @@ class MC(commands.Cog):
                 replace = await podscript.replace(processname, env, port)
                 await ctx.send(replace)
                 self.db.update({'status': 'down'}, (where('guildId') == ctx.guild.id) & (where('name') == name))
-        except:
+        except Exception as e:
+            print (e)
             await ctx.send("Something went wrong please try again")
             return
     @commands.command()
@@ -477,7 +479,8 @@ class MC(commands.Cog):
             try: self.db.update({'owner': owner}, (where('guildId') == ctx.guild.id) & (where('name') == name))
             except: ctx.send("Something went wrong")
             await ctx.send("Transfer was successful")
-        except:
+        except Exception as e:
+            print (e)
             await ctx.send("It looks like something went wrong. Please check your parameters and try again")
             return
         
