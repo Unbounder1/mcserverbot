@@ -10,11 +10,10 @@ class MyHelp(commands.Cog):
     async def help(self, ctx: Context, command = "all", *, args= None):
         if not args:
             currentpage = 1
-
         
         if command == "all":
             def page1():
-                embed=discord.Embed(color=0x00ffff)
+                embed=discord.Embed(color=0x0bf4e9)
                 embed.set_author(name="Help Page")
                 embed.add_field(name="List of active commands", value="""
                 `$help all` : Displays this message\n
@@ -27,7 +26,7 @@ class MyHelp(commands.Cog):
                 """, inline = True)
                 return embed
             def page2():
-                embed=discord.Embed(color=0x00ffff)
+                embed=discord.Embed(color=0x0bf4e9)
                 embed.set_author(name="Main Help Page")
                 embed.add_field(name="List of active commands", value="""
                 `$create` : Creating a server. See more info at $help create \n
@@ -40,7 +39,7 @@ class MyHelp(commands.Cog):
                 """, inline = True)
                 return embed
             def page3():
-                embed=discord.Embed(color=0x00ffff)
+                embed=discord.Embed(color=0x0bf4e9)
                 embed.add_field(name="List of active commands", value="""
                 `$addplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Adds listed users to the whitelist/ops list \n
                 `$removeplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Removes listed users to the whitelist/ops list **NOT IMPLEMENTED YET** \n
@@ -50,7 +49,7 @@ class MyHelp(commands.Cog):
                 """, inline = True)
                 return embed
             def page4():
-                embed=discord.Embed(color=0x00ffff)
+                embed=discord.Embed(color=0x0bf4e9)
                 embed.add_field(name="List of info commands", value="""
                 `$info` `servername` : Gets info of the server, like the name, type, and options that were set. \n
                 `$listmoderator` `servername` : Lists all moderators **NOT IMPLEMENTED YET** \n
@@ -166,7 +165,7 @@ class MyHelp(commands.Cog):
             await self.pageturner(ctx,currentpage,pages)
         elif command == "set":
             if not args:
-                embed=discord.Embed(color=0x00ffff)
+                embed=discord.Embed(color=0x0bf4e9)
                 embed.add_field(name="Setting Variable Format", value="""
                 The format for the command is $set servername OPTION1,OPTION2\n
                 To see info on all the options, type `$set search all` or `$set search keyword`""", inline=True)
@@ -190,13 +189,13 @@ class MyHelp(commands.Cog):
                     elif (eachword.find(args.lower()) != -1):
                         finalstring = finalstring + '\n' + eachline 
                         break
-            embed=discord.Embed(color=0x00ffff)
+            embed=discord.Embed(color=0x0bf4e9)
             embed.add_field(name=f'What I found for "{args}"', value=finalstring, inline=True)
             await ctx.send(embed=embed)
             return
         elif command == "delete":
             def page1():
-                embed=discord.Embed(color=0x00ffff)
+                embed=discord.Embed(color=0x0bf4e9)
                 embed.set_author(name="How to use the DELETE command")
                 embed.add_field(name="Saving the world for later use, backup, etc:", value="""Page 1/2 \n
                 $delete name true backupworldname "world description so that you can remember what the world was later"\n
@@ -205,7 +204,7 @@ class MyHelp(commands.Cog):
             """, inline=True)
                 return embed
             def page2():
-                embed=discord.Embed(color=0x00ffff)
+                embed=discord.Embed(color=0x0bf4e9)
                 embed.set_author(name="Main Help Page")
                 embed.add_field(name="Permanently deleting the world:", value="""Page 2/2 \n
                 $delete name , and then type y or yes to confirm when prompted\n
@@ -229,6 +228,26 @@ class MyHelp(commands.Cog):
                 return embed
             pages = [page1()]
             await self.pageturner(ctx,currentpage,pages)
+    @commands.command()
+    async def helpsetup(self, ctx: Context):
+        embed=discord.Embed(color=0x3cf00f)
+        embed.set_author(name="Welcome to Atern-ative!⠀\n⠀")
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/996965755524501614/998104400981659658/blurtrails.Redshift_ROP1.00010.png")
+        embed.set_image(url="https://cdn.discordapp.com/attachments/998113234257191053/998113763624501248/unknown.png")
+        embed.set_footer(text='Image is from /visit kwuo on hypixel housing no cap good idea very fun. ')
+        embed.add_field(name="Info about this bot!\n⠀", value="""
+        This bot uses my servers to host mc servers!
+        That means that this is coming out of my energy bill smile \n
+        **-bot use-**\n
+        This bot allows users to create their own minecraft servers without the annoying wait and lag of aternos 
+        \n**-other info-**\n
+        Supports vanilla, paper, bukkit
+        No modded rn because i too lazy
+       \n**-how to start-**\n
+        To start using this bot, type **$help**! \n
+        **Start Minecrafting!!!!!**
+        """, inline=False)
+        await ctx.send(embed=embed)
     @help.error
     async def indexerror(self, ctx: Context, error):
         if isinstance(error, commands.CommandError):

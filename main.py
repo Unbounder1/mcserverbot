@@ -23,6 +23,7 @@ async def on_ready():
 async def globally_block_dms(ctx):
     return ctx.guild is not None
 
+
 bot.add_cog(setup(bot))
 bot.add_cog(MC(bot))
 bot.add_cog(MyHelp(bot))

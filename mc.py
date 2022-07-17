@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord.ext.commands import Context
 from tinydb import TinyDB, Query, where
 from podman import PodmanClient
-from time import sleep
+from datetime import datetime
 import sys
 import traceback
 import asyncio
@@ -52,7 +52,8 @@ class MC(commands.Cog):
             }
     @commands.command()
     async def create(self, ctx: Context, name: str, mctype = "vanilla", *, args = '0'):
-        
+        await self.logs(ctx)
+        """create a server"""
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -192,6 +193,7 @@ class MC(commands.Cog):
         return
     @commands.command()
     async def set(self, ctx: Context, name: str, *, args):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -323,6 +325,7 @@ class MC(commands.Cog):
             self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def delete(self, ctx: Context, name: str, keepworld = "False", worldname = None, * ,args = "A minecraft server"):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return  
@@ -380,10 +383,10 @@ class MC(commands.Cog):
                 def check(m): 
                     return m.author == ctx.author and m.channel == ctx.channel
                 try: 
-                    await ctx.send("Are you sure you want to delete the world (There is no going back):\nTo confirm type (y)es. If no, type anything else")
+                    confirmation = await ctx.send("Are you sure you want to delete the world (There is no going back):\nTo confirm type (y)es. If no, type anything else")
                     response = await self.bot.wait_for('message', check=check, timeout=30.0)
                 except asyncio.TimeoutError: 
-                    await response.edit("You did not confirm in time. Cancelling deletion")
+                    await confirmation.edit(content = "You did not confirm in time. Cancelling deletion")
                     self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
                     return
                 if response.content.lower() not in ("yes", "y"):
@@ -411,6 +414,7 @@ class MC(commands.Cog):
             await message.edit(content = f'Server with name "{name}" deleted.')
     @commands.command()
     async def transfer(self, ctx:Context, name: str, newowner: str):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -462,7 +466,8 @@ class MC(commands.Cog):
         await ctx.send("Transfer was successful")
         
     @commands.command()
-    async def list(self, ctx: Context, type = all):
+    async def list(self, ctx: Context, type = "all"):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -472,14 +477,18 @@ class MC(commands.Cog):
                 await ctx.send('No servers')
                 return
             status = [entry['status'] for entry in self.get(ctx)]
-            for i in range(0,len(servers)-1):
-                servers[i] = servers[i] + ": Status `" + status[i] + "`"
+            owner = [entry['owner'] for entry in self.get(ctx)]
+            for i in range(0,len(servers)):
+                servers[i] = servers[i] + ": Status `" + status[i] + "` Owner: <@" + str(owner[i]) + ">"
             await ctx.send('\n'.join(servers))
         elif type == "running" or "up" or "on":
             servers = [entry['name'] for entry in self.get(ctx)] 
             status = [entry['status'] for entry in self.get(ctx)]
+            owner = [entry['owner'] for entry in self.get(ctx)]
+            applicable = []
             for i in range(0,len(servers)):
-                servers[i] = servers[i] + ": Status `" + status[i] + "`"
+                if (status == type) or (type.find(owner) != 1):
+                    applicable.append(servers[i] + ": Status `" + status[i] +  "` Owner: <@" + str(owner[i]) + ">")
             if len(servers) == 0:
                 await ctx.send('No servers')
                 return
@@ -488,6 +497,7 @@ class MC(commands.Cog):
 
     @commands.command()
     async def status(self,ctx: Context, name: str):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -500,6 +510,7 @@ class MC(commands.Cog):
         return
     @commands.command()
     async def stop(self,ctx: Context, name: str):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -514,8 +525,10 @@ class MC(commands.Cog):
         stopping = await podscript.stop(processname)
         await message.edit(content = stopping)
         self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
+        
     @commands.command()
     async def start(self,ctx: Context, name: str):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -534,6 +547,7 @@ class MC(commands.Cog):
         self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def ip(self,ctx: Context, name: str):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -544,6 +558,7 @@ class MC(commands.Cog):
 
     @commands.command()
     async def addplayer(self,ctx: Context, servername: str, whichlst: str, *, args):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -561,6 +576,7 @@ class MC(commands.Cog):
             await ctx.send("Something went wrong. Check your parameters for spelling errors")
     @commands.command()
     async def removeplayer(self,ctx: Context, servername: str, whichlst: str, *, args):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -578,6 +594,7 @@ class MC(commands.Cog):
             await ctx.send("Something went wrong. Check your parameters for spelling errors")
     @commands.command()
     async def addmoderator(self,ctx: Context, name: str, *, args):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -602,6 +619,7 @@ class MC(commands.Cog):
         self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
     @commands.command()
     async def removemoderator(self,ctx: Context, name: str, *, args):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -627,6 +645,7 @@ class MC(commands.Cog):
         self.db.update({'moderators': userlst}, (where('serverId') == id) & (where('name') == name))
     @commands.command()
     async def restore(self, ctx: Context, worldname: str, *, args):
+        await self.logs(ctx)
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
@@ -708,6 +727,7 @@ class MC(commands.Cog):
         return
     @commands.command()
     async def info(self, ctx: Context, name: str):
+        await self.logs(ctx)
         id = ctx.guild.id
         servername = name + "." + str(ctx.guild.id)
         owner = self.db.get((where('serverId') == id) & (where('name') == name))['owner']
@@ -789,14 +809,14 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
             is_starting=is_loading=is_finishing=True
             while is_starting:
                 await asyncio.sleep(1)
-                for i in process.logs():
+                for i in process.logs(since=2):
                     if i.decode('utf-8').find("[init]") != -1:
                         await message.edit (content = "Started the Minecraft Server")
                         is_starting= False
                         break         
             while is_loading:
                 await asyncio.sleep(1)
-                for i in process.logs():
+                for i in process.logs(since=2):
                     if i.decode('utf-8').find("Locating download") != -1:
                         await ctx.send("Preparing world...")
                         is_loading= False
@@ -804,7 +824,7 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
             message = await ctx.send("Setting up the server")
             while is_finishing:
                 await asyncio.sleep(1)
-                for i in process.logs():
+                for i in process.logs(since=2):
                     if i.decode('utf-8').find('For help') != -1:
                         is_finishing= False
                         break
@@ -812,3 +832,7 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
                 await message.edit(content = logs[-1].decode('utf-8'))
             await message.edit(content = f"The server is up on {finalip}")
             return
+    async def logs(self, ctx: Context):
+        with open('logs.txt', 'a') as logs:
+            logs.write(f'\n{datetime.now()}: {ctx.author} in {ctx.guild} has attempted to use the command "{ctx.message.content}"') 
+            print (f'\n{datetime.now()}: {ctx.author} in {ctx.guild} has attempted to use the command "{ctx.message.content}"') 

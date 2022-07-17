@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord.ext.commands import Context, has_permissions, CheckFailure
 from tinydb import TinyDB, where, Query
 from dotenv import load_dotenv
+from datetime import datetime
 import os
 
 botowners = os.getenv('BOT_OWNERS').split(',')
@@ -14,6 +15,7 @@ class setup(commands.Cog):
     @commands.command()
     @has_permissions(administrator=True)
     async def setup(self, ctx: Context, name: str):
+        await self.logs(ctx)
         query = Query()
         if len(self.conf.search(query.domainprefix == name)) > 0:
             await ctx.send("Another server already has this name. Please choose another")
@@ -33,6 +35,7 @@ class setup(commands.Cog):
         await ctx.send(f"Changed this server's prefix to {name}")
     @commands.command()
     async def maxservers(self, ctx: Context, maxservers = 0):
+        await self.logs(ctx)
         query = Query()
         if str(ctx.author.id) not in botowners:
             await ctx.send("Only the bot owners can do this.")
@@ -41,6 +44,7 @@ class setup(commands.Cog):
         await ctx.send(f"Changed this server's max server count to {maxservers}")
     @commands.command()
     async def maxperuser(self, ctx: Context, maxperuser = 0):
+        await self.logs(ctx)
         query = Query()
         if str(ctx.author.id) not in botowners:
             await ctx.send("Only the bot owners can do this.")
@@ -49,14 +53,22 @@ class setup(commands.Cog):
         await ctx.send(f"Changed this server's max servers per user to {maxperuser}")
     @commands.command()
     async def maxworlds(self, ctx: Context, maxworlds = 0):
+        await self.logs(ctx)
         query = Query()
         if str(ctx.author.id) not in botowners:
             await ctx.send("Only the bot owners can do this.")
             return
         self.conf.update({'maxworlds': maxworlds}, query.guildId == ctx.guild.id)
         await ctx.send(f"Changed this server's max worlds per user to {maxworlds}")
-
+    @commands.command()
+    async def whatserversamiin(self, ctx: Context):
+        activeservers = self.bot.guilds
+        print (activeservers)
     @setup.error
     async def setuperror(self, ctx: Context, error):
         if isinstance(error, CheckFailure):
             await ctx.send("Must have administrator permissions to change this")
+    async def logs(self, ctx: Context):
+        with open('logs.txt', 'a') as logs:
+            logs.write(f'\n{datetime.now()}: {ctx.author} in {ctx.guild} has attempted to use the command "{ctx.message.content}"') 
+            print (f'\n{datetime.now()}: {ctx.author} in {ctx.guild} has attempted to use the command "{ctx.message.content}"') 
