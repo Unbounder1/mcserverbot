@@ -25,11 +25,11 @@ class setup(commands.Cog):
                 if not namesub.isalnum():
                     await ctx.send("Only valid characters include letters, numbers, and `-`")
                     return 
-        try: maxservers=self.conf.get(where('guildId' == ctx.guild.id))['maxservers']
+        try: maxservers=self.conf.get(query.guildId == ctx.guild.id)['maxservers']
         except: maxservers = 0
-        try: maxperuser=self.conf.get(where('guildId' == ctx.guild.id))['maxperuser']
+        try: maxperuser=self.conf.get(query.guildId  == ctx.guild.id)['maxperuser']
         except: maxperuser = 0
-        try: maxperuser=self.conf.get(where('guildId' == ctx.guild.id))['maxworlds']
+        try: maxperuser=self.conf.get(query.guildId  == ctx.guild.id)['maxworlds']
         except: maxworlds = 0
         self.conf.upsert({'guildId': ctx.guild.id, 'domainprefix': name,'maxservers': maxservers, 'maxperuser': maxperuser, 'maxworlds': maxworlds}, query.guildId == ctx.guild.id)
         await ctx.send(f"Changed this server's prefix to {name}")
@@ -64,10 +64,10 @@ class setup(commands.Cog):
     async def whatserversamiin(self, ctx: Context):
         activeservers = self.bot.guilds
         print (activeservers)
-    @setup.error
-    async def setuperror(self, ctx: Context, error):
-        if isinstance(error, CheckFailure):
-            await ctx.send("Must have administrator permissions to change this")
+    # @setup.error
+    # async def setuperror(self, ctx: Context, error):
+    #     if isinstance(error, CheckFailure):
+    #         await ctx.send("Must have administrator permissions to change this")
     async def logs(self, ctx: Context):
         with open('logs.txt', 'a') as logs:
             logs.write(f'\n{datetime.now()}: {ctx.author} in {ctx.guild} has attempted to use the command "{ctx.message.content}"') 

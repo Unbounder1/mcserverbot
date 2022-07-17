@@ -231,7 +231,7 @@ class MyHelp(commands.Cog):
     async def helpsetup(self, ctx: Context):
         embed=discord.Embed(color=0x3cf00f)
         embed.set_author(name="Welcome to Atern-ative!⠀\n⠀")
-        embed.set_thumbnail(url="https://imgur.com/a/VxqZgXt.png")
+        embed.set_thumbnail(url="https://i.imgur.com/QjjtoIm.png")
         embed.set_image(url="https://i.imgur.com/m7mVx9q.png")
         embed.set_footer(text='Image is from /visit kwuo on hypixel housing no cap fun parkore ')
         embed.add_field(name="Info about this bot!\n⠀", value="""
