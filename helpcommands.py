@@ -42,7 +42,7 @@ class MyHelp(commands.Cog):
                 embed=discord.Embed(color=0x0bf4e9)
                 embed.add_field(name="List of active commands", value="""
                 `$addplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Adds listed users to the whitelist/ops list \n
-                `$removeplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Removes listed users to the whitelist/ops list **NOT IMPLEMENTED YET** \n
+                `$removeplayer` `servername` `whitelist/ops` `ingamename1,ingamename2` : Removes listed users to the whitelist/ops list \n
                 `$delete` : deleting a server. See more info and options at $help delete \n
                 `$transfer` `servername` `@user` : Transfer ownership of a server to another user
                 \nGo to the next page for options
@@ -51,8 +51,7 @@ class MyHelp(commands.Cog):
             def page4():
                 embed=discord.Embed(color=0x0bf4e9)
                 embed.add_field(name="List of info commands", value="""
-                `$info` `servername` : Gets info of the server, like the name, type, and options that were set. \n
-                `$listmoderator` `servername` : Lists all moderators **NOT IMPLEMENTED YET** \n
+                `$info` `servername` : Gets info of the server, like the name, owner, and moderators. \n
                 `$status` `servername` : Lists the status of the specified server \n
                 `$ip` `servername` : Gets the IP of the specified server \n
                 \nGo to the next page for options
@@ -64,7 +63,7 @@ class MyHelp(commands.Cog):
                 `$oldworlds` `list` : Lists all the world backups you have \n
                 `$oldworlds` `info` `worldname` : Get more info on specific world backup \n
                 `$oldworlds` `delete` `worldname` : Permanently delete the world \n
-                `$oldworlds` `transfer `worldname` `@usertotransferto` : Transfer world to another user \n
+                `$oldworlds` `transfer` `worldname` `@usertotransferto` : Transfer world to another user \n
                 `$restore` `worldname` name=`newservername`,version=`version|(empty = latest version)` \n
                 \nGo to the next page for options
                 """, inline=True)
@@ -228,26 +227,26 @@ class MyHelp(commands.Cog):
                 return embed
             pages = [page1()]
             await self.pageturner(ctx,currentpage,pages)
-    @commands.command()
-    async def helpsetup(self, ctx: Context):
-        embed=discord.Embed(color=0x3cf00f)
-        embed.set_author(name="Welcome to Atern-ative!⠀\n⠀")
-        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/996965755524501614/998104400981659658/blurtrails.Redshift_ROP1.00010.png")
-        embed.set_image(url="https://cdn.discordapp.com/attachments/998113234257191053/998113763624501248/unknown.png")
-        embed.set_footer(text='Image is from /visit kwuo on hypixel housing no cap good idea very fun. ')
-        embed.add_field(name="Info about this bot!\n⠀", value="""
-        This bot uses my servers to host mc servers!
-        That means that this is coming out of my energy bill smile \n
-        **-bot use-**\n
-        This bot allows users to create their own minecraft servers without the annoying wait and lag of aternos 
-        \n**-other info-**\n
-        Supports vanilla, paper, bukkit
-        No modded rn because i too lazy
-       \n**-how to start-**\n
-        To start using this bot, type **$help**! \n
-        **Start Minecrafting!!!!!**
-        """, inline=False)
-        await ctx.send(embed=embed)
+    # @commands.command()
+    # async def helpsetup(self, ctx: Context):
+    #     embed=discord.Embed(color=0x3cf00f)
+    #     embed.set_author(name="Welcome to Atern-ative!⠀\n⠀")
+    #     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/996965755524501614/998104400981659658/blurtrails.Redshift_ROP1.00010.png")
+    #     embed.set_image(url="https://cdn.discordapp.com/attachments/998113234257191053/998113763624501248/unknown.png")
+    #     embed.set_footer(text='Image is from /visit kwuo on hypixel housing no cap good idea very fun. ')
+    #     embed.add_field(name="Info about this bot!\n⠀", value="""
+    #     This bot uses my servers to host mc servers!
+    #     That means that this is coming out of my energy bill smile \n
+    #     **-bot use-**\n
+    #     This bot allows users to create their own minecraft servers without the annoying wait and lag of aternos 
+    #     \n**-other info-**\n
+    #     Supports vanilla, paper, bukkit
+    #     No modded rn because i too lazy
+    #    \n**-how to start-**\n
+    #     To start using this bot, type **$help**! \n
+    #     **Now hurry up and start Minecrafting!!!!!**
+    #     """, inline=False)
+    #     await ctx.send(embed=embed)
     @help.error
     async def indexerror(self, ctx: Context, error):
         if isinstance(error, commands.CommandError):
