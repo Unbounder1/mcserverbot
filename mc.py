@@ -90,7 +90,7 @@ class MC(commands.Cog):
                 temp = a.split("=")
                 if temp[0] == "MAX_MEMORY":
                     try:
-                        if 2<=int(temp[1])<=8: #MIN/MAX MEMORY USAGE
+                        if 2<=int(temp[1])<=6: #MIN/MAX MEMORY USAGE
                             mainenv[temp[0]]=str(temp[1]) + "G"
                         elif ctx.author.id in botowners:
                             mainenv[temp[0]]=str(temp[1]) + "G"
@@ -303,7 +303,7 @@ class MC(commands.Cog):
                         otherpropenv[temp[0]]=final
                     elif temp[0] == 'MAX_MEMORY':
                         try:
-                            if 2<int(temp[1])<8:
+                            if 2<int(temp[1])<=6:
                                 maxmemory[temp[0]]=str(temp[1]) + "G"
                             else:
                                 raise OverflowError

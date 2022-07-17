@@ -107,7 +107,7 @@ class MyHelp(commands.Cog):
                 embed=discord.Embed(color=0x3cf00f)
                 embed.set_author(name="Page 3/6")
                 embed.add_field(name="Global Options (All types have these)", value="`VERSION`: *Minecraft version, default is latest. Example:* **1.19.1**", inline=False)
-                embed.add_field(name="⠀", value="""`MAX_MEMORY`: *Amount of RAM the server will have, valid range is between 2 and 8. 4 is enough for almost anything normal. If you need more, please contact a bot owner. Example:* **4**
+                embed.add_field(name="⠀", value="""`MAX_MEMORY`: *Amount of RAM the server will have, valid range is between 2 and 6. 4 is enough for almost anything normal. If you need more, please contact a bot owner. Example:* **4**
                 \n`MOTD`: The server message. Use (§) as formatting codes, and input the motd in between quotes: Example: "This is the §c§lMOTD"
                 
                 
@@ -227,26 +227,26 @@ class MyHelp(commands.Cog):
                 return embed
             pages = [page1()]
             await self.pageturner(ctx,currentpage,pages)
-    # @commands.command()
-    # async def helpsetup(self, ctx: Context):
-    #     embed=discord.Embed(color=0x3cf00f)
-    #     embed.set_author(name="Welcome to Atern-ative!⠀\n⠀")
-    #     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/996965755524501614/998104400981659658/blurtrails.Redshift_ROP1.00010.png")
-    #     embed.set_image(url="https://cdn.discordapp.com/attachments/998113234257191053/998113763624501248/unknown.png")
-    #     embed.set_footer(text='Image is from /visit kwuo on hypixel housing no cap good idea very fun. ')
-    #     embed.add_field(name="Info about this bot!\n⠀", value="""
-    #     This bot uses my servers to host mc servers!
-    #     That means that this is coming out of my energy bill smile \n
-    #     **-bot use-**\n
-    #     This bot allows users to create their own minecraft servers without the annoying wait and lag of aternos 
-    #     \n**-other info-**\n
-    #     Supports vanilla, paper, bukkit
-    #     No modded rn because i too lazy
-    #    \n**-how to start-**\n
-    #     To start using this bot, type **$help**! \n
-    #     **Now hurry up and start Minecrafting!!!!!**
-    #     """, inline=False)
-    #     await ctx.send(embed=embed)
+    @commands.command()
+    async def helpsetup(self, ctx: Context):
+        embed=discord.Embed(color=0x3cf00f)
+        embed.set_author(name="Welcome to Atern-ative!⠀\n⠀")
+        embed.set_thumbnail(url="https://imgur.com/a/VxqZgXt.png")
+        embed.set_image(url="https://i.imgur.com/m7mVx9q.png")
+        embed.set_footer(text='Image is from /visit kwuo on hypixel housing no cap fun parkore ')
+        embed.add_field(name="Info about this bot!\n⠀", value="""
+        This bot uses my servers to host mc servers!
+        That means that this is coming out of my energy bill smile \n
+        **-bot use-**\n
+        This bot allows users to create their own minecraft servers without the annoying wait and lag of aternos 
+        \n**-other info-**\n
+        Supports vanilla, paper, bukkit
+        No modded rn because i too lazy
+       \n**-how to start-**\n
+        To start using this bot, type **$help**! \n
+        **Now hurry up and start Minecrafting!!!!!**
+        """, inline=False)
+        await ctx.send(embed=embed)
     @help.error
     async def indexerror(self, ctx: Context, error):
         if isinstance(error, commands.CommandError):
