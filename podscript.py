@@ -18,13 +18,14 @@ async def create(name: str, env: dict, port: int, version = None):
     imageversion = 'itzg/minecraft-server'
     if version:
         versionsplit = version.split(".")
-        if (versionsplit[0] == 1) & (versionsplit[1]<17):
+        if (int(versionsplit[0]) == 1) & (int(versionsplit[1])<17):
             imageversion = 'itzg/minecraft-server:java8-multiarch'
             
     try:
         client.containers.run(imageversion, environment=env, ports=portnumber, name=name, detach=True)
         print("making container")
     except Exception as e:
+        print (e)
         try:
             process=client.containers.get(name)
             try: process.stop()

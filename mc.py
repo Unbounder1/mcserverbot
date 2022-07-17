@@ -7,6 +7,8 @@ from time import sleep
 import sys
 import traceback
 import asyncio
+import nest_asyncio
+nest_asyncio.apply()
 import podscript
 import cloudscript
 from dotenv import load_dotenv
@@ -22,15 +24,44 @@ class MC(commands.Cog):
         self.db = TinyDB('serverDB.json').table(name='_default', cache_size = 0)
         self.conf = TinyDB('serverDB.json').table(name='_serverconf', cache_size = 0)
         self.backups = TinyDB('serverDB.json').table(name='_volumes', cache_size = 0)
+        self.defaultenv = {
+                    'GUI': "false", 
+                    'EULA': "true", 
+                    'INIT_MEMORY': "1G",
+
+                    'OVERRIDE_SERVER_PROPERTIES' : "true", 
+                    'REPLACE_ENV_IN_PLACE': "false",
+                    'OVERRIDE_OPS': "false",
+                    'OVERRIDE_WHITELIST': "false",
+                    'REMOVE_OLD_DATAPACKS': 'true',
+                    'ENABLE_ROLLING_LOGS': "false",
+                    
+                    #RCON
+                    'ENABLE_RCON': "true",
+                    'RCON_PASSWORD': "minecraft", #Advised to change this
+                    #autopause stuff
+
+                    'MAX_TICK_TIME' : "-1",
+                    'ENABLE_AUTOPAUSE': "true",
+                    'AUTOPAUSE_TIMEOUT_EST': "3600",
+                    'AUTOPAUSE_KNOCK_INTERFACE' : "tap0",
+
+                    #autostop stuff
+                    'ENABLE_AUTOSTOP': "false",
+                    'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
+            }
     @commands.command()
     async def create(self, ctx: Context, name: str, mctype = "vanilla", *, args = '0'):
+        
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return
         if self.get(ctx, name):
             await ctx.send('Server with name already exists.')
             return
-        
+        if name == "help":
+            await ctx.send("Did you mean $help create?")
+            return
         querycheck = Query()
         maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
         maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
@@ -48,6 +79,7 @@ class MC(commands.Cog):
             if str(ctx.author.id) not in botowners:
                 await ctx.send(f"This server can only have {maxservers} servers up at once")
                 return
+        message = await ctx.send("Attempting to create the world (may take a few minutes if you used a link)...")
         mainenv = {'VERSION': None,'MAX_MEMORY': None,'MOTD': "A minecraft server created by the Voark bot"}
         #__setting up the universal env variables__
         if len(args)>0 and args!="0":
@@ -69,35 +101,10 @@ class MC(commands.Cog):
                     mainenv[temp[0]]=temp[1]
                 elif temp[0] == 'MOTD':
                     mainenv[temp[0]]=temp[1].replace('"','')
-        defaultenv = {
-                    'GUI': "false", 
-                    'EULA': "true", 
-                    'INIT_MEMORY': "1G",
-
-                    'OVERRIDE_SERVER_PROPERTIES' : "true", 
-                    'REPLACE_ENV_IN_PLACE': "false",
-                    'OVERRIDE_OPS': "false",
-                    'OVERRIDE_WHITELIST': "false",
-                    'REMOVE_OLD_DATAPACKS': 'true',
-                    
-                    #RCON
-                    'ENABLE_RCON': "true",
-                    'RCON_PASSWORD': "minecraft", #Advised to change this
-                    #autopause stuff
-
-                    'MAX_TICK_TIME' : "-1",
-                    'ENABLE_AUTOPAUSE': "true",
-                    'AUTOPAUSE_TIMEOUT_EST': "3600",
-                    'AUTOPAUSE_KNOCK_INTERFACE' : "eno1",
-
-                    #autostop stuff
-                    'ENABLE_AUTOSTOP': "false",
-                    'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
-            }
         
         #__setting up the specific environmental variables__
         if mctype.lower() == "vanilla":
-            env = {**defaultenv, **mainenv}
+            env = {**self.defaultenv, **mainenv}
         elif (mctype.lower() == "custom") or (mctype.lower() == "paper") or (mctype.lower() == "bukkit") or (mctype.lower() == "spigot"):
             linkpropenv = dict.fromkeys(['DATAPACKS','ICON','WORLD'], None)
             otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
@@ -109,7 +116,8 @@ class MC(commands.Cog):
                     temp = a.split("=")
                     #__malware/validity checker for links
                     if temp[0] in linkpropenv:
-                        analysis  = await cloudscript.virustest(temp[1])
+
+                        analysis = await cloudscript.virustest(temp[1])
                         if analysis == '1':
                             linkpropenv[temp[0]]=temp[1]
                             await ctx.send("Check 1: Links are valid")
@@ -128,7 +136,7 @@ class MC(commands.Cog):
                 type = "VANILLA"
             else:
                 type = mctype.upper()
-                env = {**defaultenv, **mainenv, **linkpropenv, **otherpropenv, 'SEED': seed, 'TYPE': type}
+            env = {**self.defaultenv, **mainenv, **linkpropenv, **otherpropenv, 'SEED': seed, 'TYPE': type}
 
         #__checking universal arguments__
         
@@ -166,7 +174,7 @@ class MC(commands.Cog):
         })
 
 
-        await ctx.send(f'Server with name "{name}" on "{mctype}" added.')
+        await message.edit(content = f'Server with name "{name}" on "{mctype}" added.')
         processname = name + "." + str(ctx.guild.id)
 
         #__starting the podman container__
@@ -195,36 +203,10 @@ class MC(commands.Cog):
             return
         await ctx.send("Attempting to set variables")
         processname = name + "." + str(ctx.guild.id)
-        defaultenv = {
-            'GUI': "false", 
-            'EULA': "true", 
-            'INIT_MEMORY': "1G",
-
-            'OVERRIDE_SERVER_PROPERTIES' : "true", 
-            'REPLACE_ENV_IN_PLACE': "false",
-            'OVERRIDE_OPS': "false",
-            'OVERRIDE_WHITELIST': "false",
-            'REMOVE_OLD_DATAPACKS': 'true',
-            
-            #RCON
-            'ENABLE_RCON': "true",
-            'RCON_PASSWORD': "minecraft", #Advised to change this
-            #autopause stuff
-
-            'MAX_TICK_TIME' : "-1",
-            'ENABLE_AUTOPAUSE': "true",
-            'AUTOPAUSE_TIMEOUT_EST': "3600",
-            'AUTOPAUSE_KNOCK_INTERFACE' : "eno1",
-
-            #autostop stuff
-            'ENABLE_AUTOSTOP': "false",
-            'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
-    }
-
         intpropenv = strpropenv = specialpropenv = boolpropenv = {}
         intpropenv = dict.fromkeys(['TYPE','SPAWN_PROTECTION','VIEW_DISTANCE','MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
-        strpropenv = dict.fromkeys(['OPS','SERVER_NAME','MOTD','DIFFICULTY'], None)
-        boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','WHITELIST'], None)
+        strpropenv = dict.fromkeys(['SERVER_NAME','MOTD','DIFFICULTY', 'MODE'], None)
+        boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','ENFORCE_WHITELIST', 'ALLOW_FLIGHT', 'ONLINE_MODE'], None)
         linkpropenv = dict.fromkeys(['DATAPACKS','ICON'], None)
         otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
         maxmemory = {'MAX_MEMORY': None}
@@ -333,7 +315,7 @@ class MC(commands.Cog):
                         return
 
         #__setting the new environment variables as a new container while mounting the old volume__
-            env = {**intpropenv, **strpropenv,**boolpropenv, **linkpropenv, **otherpropenv, **maxmemory, **defaultenv}
+            env = {**intpropenv, **strpropenv,**boolpropenv, **linkpropenv, **otherpropenv, **maxmemory, **self.defaultenv}
             portdict = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
             port = portdict[0]['port']
             replace = await podscript.replace(processname, env, port)
@@ -344,21 +326,25 @@ class MC(commands.Cog):
         if self.blacklisted(str(ctx.author.id)):
             await ctx.send('You were blacklisted by the bot owner')
             return  
-        owner = self.db.get((where('serverId') == ctx.guild.id) & (where('name') == name))['owner']
-        if owner != ctx.author.id:
-            await ctx.send("Only the minecraft server owner can do this")
-            return
-        message = await ctx.send(f"Attempting to delete {name}")
         ids = self.db.search((where('serverId') == ctx.guild.id) & (where('name') == name))
         if len(ids) == 0:
             await ctx.send('Server does not exist.')
             return
+        
+        owner = self.db.get((where('serverId') == ctx.guild.id) & (where('name') == name))['owner']
+        if str(ctx.author.id) not in botowners:
+            if owner != ctx.author.id:
+                await ctx.send("Only the minecraft server owner can do this")
+                return   
+        message = await ctx.send(f"Attempting to delete {name}")
         with PodmanClient(base_url=uri) as client:
-            try:
-                process=client.containers.get(name + "." + str(ctx.guild.id))
-                process.stop()
-            except:
-                pass
+            process=client.containers.get(name + "." + str(ctx.guild.id))
+            async def stopattempt():
+                try:
+                    process.stop()
+                except:
+                    pass
+            await stopattempt()
             if keepworld.lower() == "true":
                 if len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == ctx.author.id) & (where('worldname') == worldname))):
                     await ctx.send("There is already a server with this name")
@@ -391,31 +377,90 @@ class MC(commands.Cog):
                 message = await ctx.send("Deleting the server...")
                 process.remove()
             elif keepworld.lower() == "false":
-                def check(message): 
-                    return message.author == ctx.author and message.channel == ctx.channel
+                def check(m): 
+                    return m.author == ctx.author and m.channel == ctx.channel
                 try: 
                     await ctx.send("Are you sure you want to delete the world (There is no going back):\nTo confirm type (y)es. If no, type anything else")
                     response = await self.bot.wait_for('message', check=check, timeout=30.0)
-                except asyncio.TimeoutError: return
+                except asyncio.TimeoutError: 
+                    await response.edit("You did not confirm in time. Cancelling deletion")
+                    self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
+                    return
                 if response.content.lower() not in ("yes", "y"):
                     message = await ctx.send("Cancelling deletion...")
                     self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
                     await message.edit(content = "Deletion has been cancelled")
                     return
                 message = await ctx.send("Deleting the server...")
-                volumepath = process.inspect()['Mounts'][0]['Source']
-                volume = client.volumes.get(volumepath.split("/")[volumepath.split("/").index('volumes') + 1])
-                process.remove()
-                volume.remove()
+                async def removingcontainer():
+                    try:
+                        volumepath = process.inspect()['Mounts'][0]['Source']
+                        volume = client.volumes.get(volumepath.split("/")[volumepath.split("/").index('volumes') + 1])
+                        process.remove()
+                        volume.remove()
+                    except Exception as e:
+                        print (e)
+                await removingcontainer()
             else:
                 await ctx.send("Check your parameters for spelling errors")
                 return
  
             try: await cloudscript.delete(name, ctx.guild.id)
-            except Exception as e: await ctx.send(e)
+            except Exception as e: print (e)
             self.db.remove((where('serverId') == ctx.guild.id) & (where('name') == name))
             await message.edit(content = f'Server with name "{name}" deleted.')
-
+    @commands.command()
+    async def transfer(self, ctx:Context, name: str, newowner: str):
+        if self.blacklisted(str(ctx.author.id)):
+            await ctx.send('You were blacklisted by the bot owner')
+            return
+        owner = self.db.get((where('serverId') == ctx.guild.id) & (where('name') == name))['owner']
+        if owner != ctx.author.id:
+            await ctx.send("Only the minecraft server owner can do this")
+            return
+        owner = newowner.replace("<","")
+        owner = owner.replace(">","")
+        owner = owner.replace("@","")
+        owner = owner.replace("!","")
+        owner = int(owner)
+        querycheck = Query()
+        maxperuser = self.conf.get(querycheck.guildId == ctx.guild.id)['maxperuser']
+        maxservers = self.conf.get(querycheck.guildId == ctx.guild.id)['maxservers']
+        maxworlds = self.conf.get(querycheck.guildId == ctx.guild.id)['maxworlds']
+        currentactive = len(self.db.search((querycheck.owner == owner) & (querycheck.guildId == ctx.guild.id)))
+        if currentactive>=maxperuser:
+            if str(owner) not in botowners:
+                await ctx.send(f"You can only have {maxperuser} servers active per person")
+                return
+        if len(self.backups.search((where('guildId') == ctx.guild.id) & (where('owner') == owner))) + currentactive >= maxworlds:
+            if str(owner) not in botowners:
+                await ctx.send(f"You can only have {maxperuser} servers active per person")
+                return
+        if len(self.db.search((querycheck.status == 'up') & (querycheck.guildId == ctx.guild.id)))>=maxservers:
+            if str(owner) not in botowners:
+                await ctx.send(f"This server can only have {maxservers} servers up at once")
+                return
+        def check(m): 
+            return m.author == ctx.author and m.channel == ctx.channel
+        try: 
+            await ctx.send("Are you sure you want to transfer the world?\nTo confirm type (y)es. If no, type anything else")
+            response = await self.bot.wait_for('message', check=check, timeout=30.0)
+        except asyncio.TimeoutError: return
+        def check1(m): 
+            return m.author.id == int(owner) and m.channel == ctx.channel
+        try: 
+            message = await ctx.send(f"Are you sure you want to accept the ownership? To confirm, have THEM type (y)es. If no, type anything else. \nCancelling in 30 seconds")
+            response = await self.bot.wait_for('message', check=check1, timeout=30.0)
+        except asyncio.TimeoutError: 
+            await message.edit(content = f"<@{owner}> did not reply in time. Please try again")
+            return
+        if response.content.lower() not in ("yes", "y"):
+            await ctx.send(f"<@{owner}> did not accept the transfer request.")
+            return
+        try: self.db.update({'owner': owner}, (where('serverId') == ctx.guild.id) & (where('name') == name))
+        except: ctx.send("Something went wrong")
+        await ctx.send("Transfer was successful")
+        
     @commands.command()
     async def list(self, ctx: Context, type = all):
         if self.blacklisted(str(ctx.author.id)):
@@ -484,7 +529,8 @@ class MC(commands.Cog):
         starting = await podscript.start(processname)
         await ctx.send(starting)
         finalip = await cloudscript.findip(name, ctx.guild.id)
-        await self.startup(ctx, processname, finalip)
+        try: await asyncio.wait_for(self.startup(ctx, processname, finalip), timeout= 120)
+        except asyncio.TimeoutError: pass
         self.db.update({'status': 'down'}, (where('serverId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def ip(self,ctx: Context, name: str):
@@ -617,37 +663,12 @@ class MC(commands.Cog):
             else:
                 await ctx.send("Make sure you have the right required arguments")
                 return
-        defaultenv = {
-            'GUI': "false", 
-            'EULA': "true", 
-            'INIT_MEMORY': "1G",
-
-            'OVERRIDE_SERVER_PROPERTIES' : "true", 
-            'REPLACE_ENV_IN_PLACE': "false",
-            'OVERRIDE_OPS': "false",
-            'OVERRIDE_WHITELIST': "false",
-            'REMOVE_OLD_DATAPACKS': 'true',
-            
-            #RCON
-            'ENABLE_RCON': "true",
-            'RCON_PASSWORD': "minecraft", #Advised to change this
-            #autopause stuff
-
-            'MAX_TICK_TIME' : "-1",
-            'ENABLE_AUTOPAUSE': "true",
-            'AUTOPAUSE_TIMEOUT_EST': "3600",
-            'AUTOPAUSE_KNOCK_INTERFACE' : "eno1",
-
-            #autostop stuff
-            'ENABLE_AUTOSTOP': "false",
-            'AUTOSTOP_TIMEOUT_EST': "172800" # 2 days
-    }
         mctype = oldworldinfo['type']
         if mctype.lower() == "custom":
             type = "VANILLA"
         else:
             type = mctype.upper()
-        env = {**defaultenv, **newenv, 'TYPE': type}
+        env = {**self.defaultenv, **newenv, 'TYPE': type}
         port = None
         for p in range (int(os.getenv('PORT_MIN')),int(os.getenv('PORT_MAX'))):
             portchecker = Query()
@@ -768,22 +789,22 @@ There are **{len(self.db.search((querycheck.status == 'up') & (querycheck.guildI
             is_starting=is_loading=is_finishing=True
             while is_starting:
                 await asyncio.sleep(1)
-                for i in process.logs(since=2):
+                for i in process.logs():
                     if i.decode('utf-8').find("[init]") != -1:
                         await message.edit (content = "Started the Minecraft Server")
                         is_starting= False
                         break         
             while is_loading:
                 await asyncio.sleep(1)
-                for i in process.logs(since=2):
-                    if i.decode('utf-8').find("[ServerMain/INFO]") != -1:
+                for i in process.logs():
+                    if i.decode('utf-8').find("Locating download") != -1:
                         await ctx.send("Preparing world...")
                         is_loading= False
                         break
             message = await ctx.send("Setting up the server")
             while is_finishing:
                 await asyncio.sleep(1)
-                for i in process.logs(since=5):
+                for i in process.logs():
                     if i.decode('utf-8').find('For help') != -1:
                         is_finishing= False
                         break
