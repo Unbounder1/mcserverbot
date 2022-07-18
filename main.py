@@ -1,14 +1,16 @@
+import sys
+sys.path.insert(0, './discordpy')
 import os
 from dotenv import load_dotenv
 
-import discord
-from discord.ext import commands
 from mc import MC
 from setupcommands import setup
 from helpcommands import MyHelp
 from volumemanagement import ManageVolumes
-import traceback
-import sys
+
+
+import discord
+from discord.ext import commands
 load_dotenv()
 
 CLIENT_TOKEN = os.getenv('CLIENT_TOKEN')
