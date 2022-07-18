@@ -167,7 +167,7 @@ class MyHelp(commands.Cog):
                 embed=discord.Embed(color=0x0bf4e9)
                 embed.add_field(name="Setting Variable Format", value="""
                 The format for the command is $set servername OPTION1,OPTION2\n
-                To see info on all the options, type `$set search all` or `$set search keyword`""", inline=True)
+                To see info on all the options, type `$help search all` or `$help search keyword`""", inline=True)
                 await ctx.send(embed=embed)
                 return
         elif command == "search":
