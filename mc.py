@@ -35,6 +35,7 @@ class MC(commands.Cog):
                     'OVERRIDE_WHITELIST': "false",
                     'REMOVE_OLD_DATAPACKS': 'true',
                     'ENABLE_ROLLING_LOGS': "false",
+                    'OVERRIDE_ICON': 'true',
                     
                     #RCON
                     'ENABLE_RCON': "true",
@@ -44,6 +45,7 @@ class MC(commands.Cog):
                     'MAX_TICK_TIME' : "-1",
                     'ENABLE_AUTOPAUSE': "true",
                     'AUTOPAUSE_TIMEOUT_EST': "3600",
+                    'JVM_DD_OPTS': 'disable.watchdog:true',
                     'AUTOPAUSE_KNOCK_INTERFACE' : "tap0",
 
                     #autostop stuff
@@ -218,7 +220,7 @@ class MC(commands.Cog):
             intpropenv = strpropenv = specialpropenv = boolpropenv = {}
             intpropenv = dict.fromkeys(['TYPE','SPAWN_PROTECTION','VIEW_DISTANCE','MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
             strpropenv = dict.fromkeys(['SERVER_NAME','MOTD','DIFFICULTY', 'MODE', 'VERSION'], None)
-            boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','ENFORCE_WHITELIST', 'ALLOW_FLIGHT', 'ONLINE_MODE'], None)
+            boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','ENFORCE_WHITELIST', 'ENABLE_WHITELIST', 'ALLOW_FLIGHT', 'ONLINE_MODE'], None)
             linkpropenv = dict.fromkeys(['DATAPACKS','ICON'], None)
             otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
             maxmemory = {'MAX_MEMORY': None}
