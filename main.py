@@ -7,7 +7,7 @@ from mc import MC
 from setupcommands import setup
 from helpcommands import MyHelp
 from volumemanagement import ManageVolumes
-from babysetup import MCBabySetup
+# from babysetup import MCBabySetup
 
 import discord
 from discord.ext import commands
@@ -32,5 +32,5 @@ bot.add_cog(setup(bot))
 bot.add_cog(MC(bot))
 bot.add_cog(MyHelp(bot))
 bot.add_cog(ManageVolumes(bot))
-bot.add_cog(MCBabySetup(bot))
+# bot.add_cog(MCBabySetup(bot))
 bot.run(CLIENT_TOKEN)

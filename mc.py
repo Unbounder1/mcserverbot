@@ -217,7 +217,7 @@ class MC(commands.Cog):
             processname = name + "." + str(ctx.guild.id)
             intpropenv = strpropenv = specialpropenv = boolpropenv = {}
             intpropenv = dict.fromkeys(['TYPE','SPAWN_PROTECTION','VIEW_DISTANCE','MAX_BUILD_HEIGHT','MAX_WORLD_SIZE','MAX_PLAYERS'])
-            strpropenv = dict.fromkeys(['SERVER_NAME','MOTD','DIFFICULTY', 'MODE'], None)
+            strpropenv = dict.fromkeys(['SERVER_NAME','MOTD','DIFFICULTY', 'MODE', 'VERSION'], None)
             boolpropenv = dict.fromkeys(['ENABLE_COMMAND_BLOCK','HARDCORE','ENFORCE_WHITELIST', 'ALLOW_FLIGHT', 'ONLINE_MODE'], None)
             linkpropenv = dict.fromkeys(['DATAPACKS','ICON'], None)
             otherpropenv = dict.fromkeys(['VANILLATWEAKS_SHARECODE','SPIGET_RESOURCES'], None)
@@ -416,6 +416,8 @@ class MC(commands.Cog):
                         volume.remove()
                     except Exception as e:
                         print (e)
+                        self.db.remove((where('guildId') == ctx.guild.id) & (where('name') == name))
+                        await message.edit(content = f'Server with name "{name}" deleted.')
                 await removingcontainer()
             else:
                 await ctx.send("Check your parameters for spelling errors")
