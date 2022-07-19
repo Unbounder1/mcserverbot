@@ -121,7 +121,8 @@ class MC(commands.Cog):
                         temp = a.split("=")
                         #__malware/validity checker for links
                         if temp[0] in linkpropenv:
-
+                            if temp[1].find("http") == 1:
+                                temp[1] = "https://" + temp[1]
                             analysis = await cloudscript.virustest(temp[1])
                             if analysis == '1':
                                 linkpropenv[temp[0]]=temp[1]
@@ -567,7 +568,7 @@ class MC(commands.Cog):
         finalip = await cloudscript.findip(name, ctx.guild.id)
         try: await asyncio.wait_for(self.startup(ctx, processname, finalip), timeout= 120)
         except asyncio.TimeoutError: pass
-        self.db.update({'status': 'down'}, (where('guildId') == ctx.guild.id) & (where('name') == name))
+        self.db.update({'status': 'up'}, (where('guildId') == ctx.guild.id) & (where('name') == name))
     @commands.command()
     async def ip(self,ctx: Context, name: str):
         await self.logs(ctx)
